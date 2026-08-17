@@ -1,0 +1,218 @@
+:root {
+    /* Color Palette - Burnt Orange & Black Theme */
+    --primary-color: #CC5500;
+    /* Burnt Orange */
+    --primary-hover: #A04300;
+    /* Darker Burnt Orange */
+    --secondary-color: #121212;
+    /* Deep Black */
+    --accent-color: #FFA500;
+    /* Amber Accent */
+
+    /* Light Mode Variables */
+    --bg-color: #F8F9FA;
+    --card-bg: #FFFFFF;
+    --text-color: #121212;
+    --text-muted: #6C757D;
+    --border-color: #E0E0E0;
+
+    /* Header Navbar - Light Mode */
+    --nav-bg: #FFFFFF;
+    /* Pure White Header Background */
+    --nav-text: #121212;
+    /* Black Navigation Links */
+}
+
+[data-theme="dark"] {
+    /* Dark Mode Overrides */
+    --bg-color: #0F0F0F;
+    --card-bg: #1E1E1E;
+    --text-color: #F8F9FA;
+    --text-muted: #A0A0A0;
+    --border-color: #2D2D2D;
+
+    /* Header Navbar - Dark Mode */
+    --nav-bg: #0F0F0F;
+    /* Deep Black Header Background */
+    --nav-text: #F8F9FA;
+    /* Light Navigation Links */
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Navbar Styling */
+.navbar {
+    background-color: var(--nav-bg);
+    color: var(--nav-text);
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 3px solid var(--primary-color);
+}
+
+.navbar .brand {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: var(--nav-text);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.navbar .brand img {
+    height: 38px;
+    width: auto;
+    object-fit: contain;
+    vertical-align: middle;
+}
+
+.navbar .brand span {
+    color: var(--primary-color);
+    /* Burnt Orange for BOUESTI */
+}
+
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    list-style: none;
+}
+
+.nav-links a {
+    color: var(--nav-text);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.nav-links a:hover {
+    color: var(--primary-color);
+}
+
+/* Theme Toggle Button */
+.theme-toggle-btn {
+    background: transparent;
+    border: 1px solid var(--primary-color);
+    color: var(--primary-color);
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: 600;
+}
+
+.theme-toggle-btn:hover {
+    background-color: var(--primary-color);
+    color: #FFFFFF;
+}
+
+/* Main Container & Footer */
+.main-content {
+    flex: 1;
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.footer {
+    background-color: var(--secondary-color);
+    color: #888888;
+    text-align: center;
+    padding: 1rem;
+    font-size: 0.85rem;
+    margin-top: auto;
+    border-top: 1px solid var(--border-color);
+}
+
+/* Flash Messages */
+.alert {
+    padding: 0.8rem 1.2rem;
+    border-radius: 6px;
+    margin-bottom: 1.5rem;
+}
+
+.alert-success {
+    background-color: #2E7D32;
+    color: #FFFFFF;
+}
+
+.alert-error {
+    background-color: #C62828;
+    color: #FFFFFF;
+}
+
+.alert-info {
+    background-color: var(--primary-color);
+    color: #FFFFFF;
+}
+
+/* Responsive / Mobile-First Tweaks */
+@media (max-width: 768px) {
+    .navbar {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+    }
+
+    .nav-links {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.8rem;
+    }
+
+    .admin-complaint-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .card-box {
+        padding: 1rem !important;
+    }
+
+    .button-group {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .button-group a,
+    .button-group button {
+        width: 100%;
+        text-align: center;
+    }
+}
+
+/* Logo Theme Switching Rules */
+.logo-dark {
+    display: none !important;
+}
+
+.logo-light {
+    display: inline-block !important;
+}
+
+/* When Dark Theme is Active */
+[data-theme="dark"] .logo-light {
+    display: none !important;
+}
+
+[data-theme="dark"] .logo-dark {
+    display: inline-block !important;
+}

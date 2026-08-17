@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+
+{% block title %}Student Dashboard - BOUESTI Complaint Portal{% endblock %}
+
+{% block content %}
+<div
+    style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h2 style="color: var(--primary-color);">Student Dashboard</h2>
+        <p style="color: var(--text-muted);">Welcome back, {{ current_user.full_name }}</p>
+    </div>
+    <a href="{{ url_for('submit_complaint') }}"
+        style="background-color: var(--primary-color); color: #fff; padding: 0.75rem 1.5rem; border-radius: 5px; text-decoration: none; font-weight: bold;">
+        + Submit New Complaint
+    </a>
+</div>
+
+{% if complaints %}
+<div
+    style="overflow-x: auto; background-color: var(--card-bg); border-radius: 8px; border: 1px solid var(--border-color);">
+    <table style="width: 100%; border-collapse: collapse; text-align: left;">
+        <thead>
+            <tr style="border-bottom: 2px solid var(--border-color); background-color: var(--bg-color);">
+                <th style="padding: 1rem;">Ref ID</th>
+                <th style="padding: 1rem;">Category</th>
+                <th style="padding: 1rem;">Subject</th>
+                <th style="padding: 1rem;">Priority</th>
+                <th style="padding: 1rem;">Status</th>
+                <th style="padding: 1rem;">Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in complaints %}
+            <tr style="border-bottom: 1px solid var(--border-color);">
+                <td style="padding: 1rem; font-weight: bold; color: var(--primary-color);">{{ c.reference_number }}</td>
+                <td style="padding: 1rem;">{{ c.category.name }}</td>
+                <td style="padding: 1rem;">{{ c.subject }}</td>
+                <td style="padding: 1rem;">
+                    <span
+                        style="padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.8rem; font-weight: bold; background-color: {% if c.priority == 'Urgent' %}#C62828{% elif c.priority == 'High' %}#E65100{% else %}#2E7D32{% endif %}; color: #fff;">
+                        {{ c.priority }}
+                    </span>
+                </td>
+                <td style="padding: 1rem;">
+                    <span
+                        style="padding: 0.3rem 0.8rem; border-radius: 4px; font-size: 0.85rem; font-weight: bold; background-color: var(--primary-color); color: #fff;">
+                        {{ c.status }}
+                    </span>
+                </td>
+                <td style="padding: 1rem; color: var(--text-muted); font-size: 0.9rem;">
+                    {{ c.submission_date.strftime('%Y-%m-%d') }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div
+    style="text-align: center; padding: 3rem; background-color: var(--card-bg); border-radius: 8px; border: 1px solid var(--border-color);">
+    <h3 style="color: var(--text-muted); margin-bottom: 1rem;">No complaints submitted yet.</h3>
+    <p style="margin-bottom: 1.5rem; color: var(--text-muted);">Have an issue or grievance? Submit your first complaint
+        below.</p>
+    <a href="{{ url_for('submit_complaint') }}"
+        style="background-color: var(--primary-color); color: #fff; padding: 0.75rem 1.5rem; border-radius: 5px; text-decoration: none; font-weight: bold;">
+        File a Complaint
+    </a>
+</div>
+{% endif %}
+{% endblock %}

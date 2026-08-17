@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}Track Complaint Status - BOUESTI College of Science Portal{% endblock %}
+
+{% block content %}
+<div style="max-width: 650px; margin: 2rem auto; text-align: center;">
+    <h2 style="color: var(--primary-color); margin-bottom: 0.5rem;">Track Complaint Progress</h2>
+    <p style="color: var(--text-muted); margin-bottom: 2rem;">Enter your unique Reference ID below to check real-time
+        status.</p>
+
+    <form action="{{ url_for('track_complaint') }}" method="POST"
+        style="display: flex; gap: 0.5rem; margin-bottom: 2rem;">
+        <input type="text" name="reference_number" value="{{ searched_ref if searched_ref else '' }}"
+            placeholder="e.g., BOUESTI-2026-X8Y2" required
+            style="flex: 1; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 4px; font-size: 1rem; background-color: var(--bg-color); color: var(--text-color);">
+        <button type="submit"
+            style="padding: 0.8rem 1.5rem; background-color: var(--primary-color); color: #fff; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">
+            Track Status
+        </button>
+    </form>
+
+    {% if complaint %}
+    <div
+        style="background-color: var(--card-bg); padding: 2rem; border-radius: 8px; border: 1px solid var(--border-color); text-align: left;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3 style="color: var(--primary-color); font-size: 1.4rem; margin: 0;">{{ complaint.reference_number }}</h3>
+            <span
+                style="padding: 0.4rem 1rem; border-radius: 4px; font-weight: bold; background-color: var(--primary-color); color: #fff; font-size: 0.85rem;">
+                {{ complaint.status }}
+            </span>
+        </div>
+
+        <p style="margin-bottom: 0.5rem; font-weight: 500; font-size: 1.1rem;">{{ complaint.subject }}</p>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">
+            Category: <strong>{{ complaint.category.name }}</strong> | Submitted on {{
+            complaint.submission_date.strftime('%b %d, %Y') }}
+        </p>
+
+        <h4 style="margin-top: 1.5rem; margin-bottom: 1rem; color: var(--secondary-color);">Status Timeline & Audit
+            History</h4>
+        <ul style="list-style: none; padding: 0; margin: 0;">
+            {% for h in complaint.status_history %}
+            <li style="padding: 0.75rem 0; border-bottom: 1px solid var(--border-color); font-size: 0.9rem;">
+                <strong style="color: var(--primary-color);">{{ h.new_status }}</strong>
+                <span style="color: var(--text-muted);">&bull; {{ h.change_date.strftime('%b %d, %Y at %I:%M %p')
+                    }}</span>
+                {% if h.notes %}
+                <p style="margin-top: 0.3rem; color: var(--text-muted); font-style: italic; margin-bottom: 0;">Remarks:
+                    {{ h.notes }}</p>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

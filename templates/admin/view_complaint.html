@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block title %}Review {{ complaint.reference_number }} - Admin Portal{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 1.5rem;">
+    <a href="{{ url_for('admin_dashboard') }}"
+        style="color: var(--primary-color); text-decoration: none; font-weight: bold;">&larr; Back to Admin
+        Dashboard</a>
+</div>
+
+<div class="admin-complaint-grid" style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+    <!-- Complaint Info -->
+    <div
+        style="background-color: var(--card-bg); padding: 2rem; border-radius: 8px; border: 1px solid var(--border-color);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h2 style="color: var(--primary-color);">{{ complaint.reference_number }}</h2>
+            <span
+                style="padding: 0.3rem 0.8rem; border-radius: 4px; font-weight: bold; background-color: var(--primary-color); color: #fff;">
+                {{ complaint.status }}
+            </span>
+        </div>
+
+        <h3 style="margin-bottom: 0.5rem;">{{ complaint.subject }}</h3>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">
+            Submitted by <strong>{{ complaint.student.full_name }}</strong> ({{ complaint.student.username }}) on {{
+            complaint.submission_date.strftime('%b %d, %Y at %I:%M %p') }}
+        </p>
+
+        <hr style="border: none; border-top: 1px solid var(--border-color); margin-bottom: 1.5rem;">
+
+        <h4>Description</h4>
+        <p style="margin-top: 0.5rem; line-height: 1.6; white-space: pre-line;">{{ complaint.description }}</p>
+
+        <h4 style="margin-top: 2rem; margin-bottom: 1rem;">Audit Trail & History</h4>
+        <ul style="list-style: none; padding: 0;">
+            {% for h in complaint.status_history %}
+            <li style="padding: 0.75rem 0; border-bottom: 1px solid var(--border-color); font-size: 0.9rem;">
+                <strong>Status changed to "{{ h.new_status }}"</strong>
+                <span style="color: var(--text-muted);">&bull; {{ h.change_date.strftime('%b %d, %Y %I:%M %p') }}</span>
+                {% if h.notes %}
+                <p style="margin-top: 0.3rem; color: var(--text-muted); font-style: italic;">Note: {{ h.notes }}</p>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- Update Action Box -->
+    <div
+        style="background-color: var(--card-bg); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border-color); height: fit-content;">
+        <h3 style="margin-bottom: 1rem; color: var(--primary-color);">Update Complaint Status</h3>
+
+        <form action="{{ url_for('admin_view_complaint', complaint_id=complaint.id) }}" method="POST">
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Status</label>
+                <select name="status" required
+                    style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-color); color: var(--text-color);">
+                    {% for st in ['Submitted', 'Under Review', 'Referred', 'Action Taken', 'Resolved', 'Rejected'] %}
+                    <option value="{{ st }}" {% if complaint.status==st %}selected{% endif %}>{{ st }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Admin Notes / Remarks</label>
+                <textarea name="notes" rows="4" placeholder="Enter reason or resolution summary..."
+                    style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-color); color: var(--text-color); resize: vertical;"></textarea>
+            </div>
+
+            <button type="submit"
+                style="width: 100%; padding: 0.75rem; background-color: var(--primary-color); color: #fff; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">
+                Save Status Update
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

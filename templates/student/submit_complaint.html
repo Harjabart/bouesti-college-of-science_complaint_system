@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block title %}Submit Complaint - BOUEST Complaint Portal{% endblock %}
+
+{% block content %}
+<div
+    style="max-width: 650px; margin: 2rem auto; padding: 2rem; background-color: var(--card-bg); border-radius: 8px; border: 1px solid var(--border-color); box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+    <h2 style="margin-bottom: 0.5rem; color: var(--primary-color);">Lodge a New Complaint</h2>
+    <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.95rem;">
+        Fill in the details below. An automated reference number will be assigned to track its status.
+    </p>
+
+    <form action="{{ url_for('submit_complaint') }}" method="POST">
+        <div style="margin-bottom: 1rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Category</label>
+            <select name="category_id" required
+                style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-color); color: var(--text-color);">
+                <option value="" disabled selected>-- Select Complaint Category --</option>
+                {% for cat in categories %}
+                <option value="{{ cat.id }}">{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Priority Level</label>
+            <select name="priority"
+                style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-color); color: var(--text-color);">
+                <option value="Normal" selected>Normal</option>
+                <option value="High">High</option>
+                <option value="Urgent">Urgent</option>
+            </select>
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Subject / Title</label>
+            <input type="text" name="subject" placeholder="e.g., Missing Score in CSC 301" required
+                style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-color); color: var(--text-color);">
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Detailed Description</label>
+            <textarea name="description" rows="5" placeholder="Provide full details regarding your complaint..."
+                required
+                style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-color); color: var(--text-color); resize: vertical;"></textarea>
+        </div>
+
+        <div style="display: flex; gap: 1rem;">
+            <button type="submit"
+                style="flex: 1; padding: 0.75rem; background-color: var(--primary-color); color: #fff; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">
+                Submit Complaint
+            </button>
+            <a href="{{ url_for('dashboard') }}"
+                style="padding: 0.75rem 1.5rem; border: 1px solid var(--border-color); color: var(--text-color); text-decoration: none; border-radius: 4px; font-weight: 500; text-align: center;">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}BOUESTI College of Science Portal{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <!-- Inline script to prevent theme flash on page load -->
+    <script>
+        if (localStorage.getItem('theme') === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+        }
+    </script>
+</head>
+
+<body>
+    <header class="navbar">
+        <!-- REPLACED BRAND SECTION START -->
+        <a href="{{ url_for('index') }}" class="brand">
+            <!-- Light Theme Logo (Shown in Light Mode) -->
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="BOUESTI Logo" class="logo-light"
+                style="height: 38px; width: auto;" onerror="this.style.display='none'">
+
+            <!-- Dark Theme Logo (Shown in Dark Mode) -->
+            <img src="{{ url_for('static', filename='images/logo-white.png') }}" alt="BOUESTI Logo" class="logo-dark"
+                style="height: 38px; width: auto;" onerror="this.style.display='none'">
+
+            <span>BOUESTI</span> College of Science
+        </a>
+        <!-- REPLACED BRAND SECTION END -->
+
+        <ul class="nav-links">
+            <li><a href="{{ url_for('index') }}">Home</a></li>
+            <li><a href="{{ url_for('track_complaint') }}">Track Status</a></li>
+            {% if current_user.is_authenticated %}
+            {% if current_user.role in ['Admin', 'SuperAdmin'] %}
+            <li><a href="{{ url_for('admin_dashboard') }}">Admin Portal</a></li>
+            {% else %}
+            <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+            <li><a href="{{ url_for('submit_complaint') }}">File Complaint</a></li>
+            {% endif %}
+            <li><a href="{{ url_for('logout') }}" style="color: var(--primary-color); font-weight: bold;">Logout ({{
+                    current_user.username }})</a></li>
+            {% else %}
+            <li><a href="{{ url_for('login') }}">Login</a></li>
+            <li><a href="{{ url_for('register') }}"
+                    style="background-color: var(--primary-color); color: #ffffff; padding: 0.4rem 1rem; border-radius: 4px; font-weight: 600;">Reg</a>
+            </li>
+            {% endif %}
+            <li>
+                <button class="theme-toggle-btn" id="themeToggle" aria-label="Toggle Theme">
+                    <span id="themeIcon">🌙</span>
+                    <span id="themeLabel">Dark</span>
+                </button>
+            </li>
+        </ul>
+    </header>
+
+    <main class="main-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }}">
+            {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <p>&copy; 2026 BOUESTI - College of Science Complaint Management System. All Rights Reserved.</p>
+    </footer>
+
+    <script>
+        const themeToggleBtn = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+        const themeLabel = document.getElementById('themeLabel');
+
+        // Sync initial toggle button text & icon with current theme state
+        if (document.documentElement.getAttribute('data-theme') === 'dark') {
+            themeIcon.textContent = '☀️';
+            themeLabel.textContent = 'Light';
+        }
+
+        themeToggleBtn.addEventListener('click', () => {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+
+            if (isDark) {
+                document.documentElement.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'light');
+                themeIcon.textContent = '🌙';
+                themeLabel.textContent = 'Dark';
+            } else {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+                themeIcon.textContent = '☀️';
+                themeLabel.textContent = 'Light';
+            }
+        });
+    </script>
+</body>
+
+</html>

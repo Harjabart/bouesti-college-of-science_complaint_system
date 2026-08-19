@@ -363,6 +363,47 @@ def update_complaint_status(complaint_id):
 
     return redirect(request.referrer or url_for('admin_dashboard'))
 
+# =========================================================================
+# AUTOMATIC DATABASE BOOTSTRAPPER (For Render Free Tier)
+# =========================================================================
+def init_db_on_startup():
+    with app.app_context():
+        # Create all missing database tables
+        db.create_all()
+
+        # Seed Default Categories
+        default_categories = [
+            "Academic Affairs",
+            "Bursary & Payments",
+            "Hostel & Accommodation",
+            "Library Services",
+            "ICT & Portal Issues",
+            "Facilities & Infrastructure",
+            "General Misconduct / Security",
+            "Other Enquiries"
+        ]
+
+        for cat_name in default_categories:
+            if not Category.query.filter_by(name=cat_name).first():
+                db.session.add(Category(name=cat_name))
+
+        # Seed Default Admin
+        admin_email = "admin@bouesti.edu.ng"
+        if not User.query.filter_by(email=admin_email).first():
+            hashed_password = generate_password_hash("Admin@BOUESTI2026!", method="scrypt")
+            admin_user = User(
+                full_name="System Super Administrator",
+                email=admin_email,
+                matric_number="ADMIN/001",
+                role="Admin",
+                password_hash=hashed_password
+            )
+            db.session.add(admin_user)
+
+        db.session.commit()
+
+# Execute database bootstrap
+init_db_on_startup()
 
 # =========================================================================
 # RUN APPLICATION

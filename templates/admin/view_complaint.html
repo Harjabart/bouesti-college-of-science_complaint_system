@@ -5,53 +5,116 @@
 {% block content %}
 <div style="margin-bottom: 1.5rem;">
     <a href="{{ url_for('admin_dashboard') }}"
-        style="color: var(--primary-color); text-decoration: none; font-weight: bold;">&larr; Back to Admin
-        Dashboard</a>
+        style="color: var(--primary-color); text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.95rem;">
+        &larr; Back to Admin Dashboard
+    </a>
 </div>
 
-<div class="admin-complaint-grid" style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
-    <!-- Complaint Info -->
-    <div
-        style="background-color: var(--card-bg); padding: 2rem; border-radius: 8px; border: 1px solid var(--border-color);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <h2 style="color: var(--primary-color);">{{ complaint.reference_number }}</h2>
-            <span
-                style="padding: 0.3rem 0.8rem; border-radius: 4px; font-weight: bold; background-color: var(--primary-color); color: #fff;">
-                {{ complaint.status }}
-            </span>
+<div class="admin-complaint-grid" style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; align-items: start;">
+    <!-- Complaint Info & Evidence -->
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+
+        <!-- Main Details Card -->
+        <div
+            style="background-color: var(--card-bg, #1e1e1e); padding: 2rem; border-radius: 8px; border: 1px solid var(--border-color, rgba(255,255,255,0.08)); box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.8rem;">
+                    <h2 style="color: var(--primary-color); font-weight: 800; font-family: monospace; margin: 0;">{{
+                        complaint.reference_number }}</h2>
+                    <span
+                        style="background-color: rgba(255,255,255,0.06); padding: 0.25rem 0.6rem; border-radius: 4px; font-size: 0.8rem; color: var(--text-color); border: 1px solid var(--border-color, rgba(255,255,255,0.1));">
+                        {{ complaint.category if complaint.category else 'General' }}
+                    </span>
+                </div>
+
+                <!-- Dynamic Status Badge -->
+                {% if complaint.status == 'Resolved' %}
+                <span
+                    style="padding: 0.35rem 0.8rem; border-radius: 20px; font-size: 0.85rem; font-weight: 700; background-color: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid rgba(46, 204, 113, 0.3);">
+                    ● Resolved
+                </span>
+                {% elif complaint.status == 'Under Review' or complaint.status == 'In Progress' %}
+                <span
+                    style="padding: 0.35rem 0.8rem; border-radius: 20px; font-size: 0.85rem; font-weight: 700; background-color: rgba(241, 196, 15, 0.15); color: #f1c40f; border: 1px solid rgba(241, 196, 15, 0.3);">
+                    ● {{ complaint.status }}
+                </span>
+                {% elif complaint.status == 'Rejected' %}
+                <span
+                    style="padding: 0.35rem 0.8rem; border-radius: 20px; font-size: 0.85rem; font-weight: 700; background-color: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid rgba(231, 76, 60, 0.3);">
+                    ● Rejected
+                </span>
+                {% else %}
+                <span
+                    style="padding: 0.35rem 0.8rem; border-radius: 20px; font-size: 0.85rem; font-weight: 700; background-color: rgba(224, 86, 36, 0.15); color: var(--primary-color); border: 1px solid rgba(224, 86, 36, 0.3);">
+                    ● Pending
+                </span>
+                {% endif %}
+            </div>
+
+            <h3 style="margin-bottom: 0.5rem; color: var(--text-color); font-size: 1.3rem; font-weight: 700;">{{
+                complaint.title }}</h3>
+
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">
+                Submitted by <strong>{{ complaint.user.full_name if complaint.user else 'Unknown Student' }}</strong>
+                ({{ complaint.user.matric_no if complaint.user else 'N/A' }} — {{ complaint.user.email if complaint.user
+                else '' }})
+                on {{ complaint.created_at.strftime('%b %d, %Y at %I:%M %p') if complaint.created_at else 'N/A' }}
+            </p>
+
+            <hr
+                style="border: none; border-top: 1px solid var(--border-color, rgba(255,255,255,0.08)); margin-bottom: 1.5rem;">
+
+            <h4 style="color: var(--text-color); font-weight: 700; margin-bottom: 0.5rem;">Description / Context</h4>
+            <div
+                style="color: var(--text-color); line-height: 1.7; white-space: pre-line; background: var(--bg-color, #121212); padding: 1.2rem; border-radius: 6px; border: 1px solid var(--border-color, rgba(255,255,255,0.05)); font-size: 0.95rem;">
+                {{ complaint.description }}
+            </div>
         </div>
 
-        <h3 style="margin-bottom: 0.5rem;">{{ complaint.title }}</h3>
-        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">
-            Submitted by <strong>{{ complaint.user.full_name if complaint.user else 'Unknown Student' }}</strong>
-            ({{ complaint.user.matric_no if complaint.user else 'N/A' }}) on
-            {{ complaint.created_at.strftime('%b %d, %Y at %I:%M %p') if complaint.created_at else 'N/A' }}
-        </p>
+        <!-- Evidence Attachment Card -->
+        {% if complaint.filename %}
+        <div
+            style="background-color: var(--card-bg, #1e1e1e); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border-color, rgba(255,255,255,0.08));">
+            <h4
+                style="color: var(--text-color); font-weight: 700; margin-bottom: 0.8rem; display: flex; align-items: center; gap: 0.5rem;">
+                📂 Attached Evidence File
+            </h4>
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-color, #121212); padding: 1rem; border-radius: 6px; border: 1px solid var(--border-color, rgba(255,255,255,0.05));">
+                <span style="font-size: 0.9rem; color: var(--text-color); font-family: monospace;">{{ complaint.filename
+                    }}</span>
+                <a href="{{ url_for('uploaded_file', filename=complaint.filename) }}" target="_blank"
+                    style="background-color: var(--primary-color); color: #ffffff; padding: 0.5rem 1rem; border-radius: 4px; text-decoration: none; font-weight: 700; font-size: 0.85rem;">
+                    View / Download Attachment
+                </a>
+            </div>
+        </div>
+        {% endif %}
 
-        <hr style="border: none; border-top: 1px solid var(--border-color); margin-bottom: 1.5rem;">
-
-        <h4>Description</h4>
-        <p style="margin-top: 0.5rem; line-height: 1.6; white-space: pre-line;">{{ complaint.description }}</p>
     </div>
 
     <!-- Update Action Box -->
     <div
-        style="background-color: var(--card-bg); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border-color); height: fit-content;">
-        <h3 style="margin-bottom: 1rem; color: var(--primary-color);">Update Complaint Status</h3>
+        style="background-color: var(--card-bg, #1e1e1e); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border-color, rgba(255,255,255,0.08)); position: sticky; top: 1.5rem;">
+        <h3 style="margin-bottom: 1rem; color: var(--primary-color); font-weight: 800; font-size: 1.1rem;">Update Status
+        </h3>
 
         <form action="{{ url_for('update_status', complaint_id=complaint.id) }}" method="POST">
             <div style="margin-bottom: 1.5rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Status</label>
+                <label
+                    style="display: block; margin-bottom: 0.5rem; font-weight: 600; font-size: 0.9rem; color: var(--text-color);">Resolution
+                    State</label>
                 <select name="status" required
-                    style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-color); color: var(--text-color);">
-                    {% for st in ['Pending', 'Under Review', 'Resolved', 'Rejected'] %}
+                    style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color, #444); border-radius: 6px; background-color: var(--bg-color, #121212); color: var(--text-color); font-size: 0.95rem;">
+                    {% for st in ['Pending', 'Under Review', 'In Progress', 'Resolved', 'Rejected'] %}
                     <option value="{{ st }}" {% if complaint.status==st %}selected{% endif %}>{{ st }}</option>
                     {% endfor %}
                 </select>
             </div>
 
             <button type="submit"
-                style="width: 100%; padding: 0.75rem; background-color: var(--primary-color); color: #fff; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">
+                style="width: 100%; padding: 0.85rem; background-color: var(--primary-color); color: #ffffff; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; transition: opacity 0.2s;">
                 Save Status Update
             </button>
         </form>

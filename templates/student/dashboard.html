@@ -7,7 +7,7 @@
     style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
     <div>
         <h2 style="color: var(--primary-color);">Student Dashboard</h2>
-        <p style="color: var(--text-muted);">Welcome back, {{ current_user.full_name }}</p>
+        <p style="color: var(--text-muted);">Welcome back to your complaint management portal</p>
     </div>
     <a href="{{ url_for('submit_complaint') }}"
         style="background-color: var(--primary-color); color: #fff; padding: 0.75rem 1.5rem; border-radius: 5px; text-decoration: none; font-weight: bold;">
@@ -23,8 +23,7 @@
             <tr style="border-bottom: 2px solid var(--border-color); background-color: var(--bg-color);">
                 <th style="padding: 1rem;">Ref ID</th>
                 <th style="padding: 1rem;">Category</th>
-                <th style="padding: 1rem;">Subject</th>
-                <th style="padding: 1rem;">Priority</th>
+                <th style="padding: 1rem;">Title</th>
                 <th style="padding: 1rem;">Status</th>
                 <th style="padding: 1rem;">Date</th>
             </tr>
@@ -33,14 +32,8 @@
             {% for c in complaints %}
             <tr style="border-bottom: 1px solid var(--border-color);">
                 <td style="padding: 1rem; font-weight: bold; color: var(--primary-color);">{{ c.reference_number }}</td>
-                <td style="padding: 1rem;">{{ c.category.name }}</td>
-                <td style="padding: 1rem;">{{ c.subject }}</td>
-                <td style="padding: 1rem;">
-                    <span
-                        style="padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.8rem; font-weight: bold; background-color: {% if c.priority == 'Urgent' %}#C62828{% elif c.priority == 'High' %}#E65100{% else %}#2E7D32{% endif %}; color: #fff;">
-                        {{ c.priority }}
-                    </span>
-                </td>
+                <td style="padding: 1rem;">{{ c.category if c.category else 'General' }}</td>
+                <td style="padding: 1rem;">{{ c.title }}</td>
                 <td style="padding: 1rem;">
                     <span
                         style="padding: 0.3rem 0.8rem; border-radius: 4px; font-size: 0.85rem; font-weight: bold; background-color: var(--primary-color); color: #fff;">
@@ -48,7 +41,7 @@
                     </span>
                 </td>
                 <td style="padding: 1rem; color: var(--text-muted); font-size: 0.9rem;">
-                    {{ c.submission_date.strftime('%Y-%m-%d') }}
+                    {{ c.created_at.strftime('%Y-%m-%d') if c.created_at else 'N/A' }}
                 </td>
             </tr>
             {% endfor %}

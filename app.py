@@ -45,8 +45,8 @@ class Complaint(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref=db.backref('complaints', lazy=True))
 
-@app.before_first_request
-def create_tables():
+# Create tables with Modern Flask 3.x syntax
+with app.app_context():
     db.create_all()
 
 # --- Routes ---
@@ -74,7 +74,6 @@ def register():
             flash('Email or Matriculation Number already registered.', 'warning')
             return redirect(url_for('register'))
 
-        # Fixed hashing compatible with Werkzeug 3.0+
         hashed_password = generate_password_hash(password)
         new_user = User(
             full_name=full_name,

@@ -18,11 +18,11 @@
 <body>
     <header class="navbar">
         <a href="{{ url_for('index') }}" class="brand">
-            <!-- Light Theme Logo (Shown in Light Mode) -->
+            <!-- Light Theme Logo -->
             <img src="{{ url_for('static', filename='images/logo.png') }}" alt="BOUESTI Logo" class="logo-light"
                 style="height: 38px; width: auto;" onerror="this.style.display='none'">
 
-            <!-- Dark Theme Logo (Shown in Dark Mode) -->
+            <!-- Dark Theme Logo -->
             <img src="{{ url_for('static', filename='images/logo-white.png') }}" alt="BOUESTI Logo" class="logo-dark"
                 style="height: 38px; width: auto;" onerror="this.style.display='none'">
 
@@ -41,7 +41,7 @@
             {% endif %}
             <li>
                 <a href="{{ url_for('logout') }}" style="color: var(--primary-color); font-weight: bold;">
-                    Logout ({{ session.get('full_name') }})
+                    Logout {% if session.get('full_name') %}({{ session.get('full_name').split()[0] }}){% endif %}
                 </a>
             </li>
             {% else %}
@@ -86,6 +86,7 @@
         const themeIcon = document.getElementById('themeIcon');
         const themeLabel = document.getElementById('themeLabel');
 
+        // Set initial icon and label based on active theme
         if (document.documentElement.getAttribute('data-theme') === 'dark') {
             themeIcon.textContent = '☀️';
             themeLabel.textContent = 'Light';

@@ -59,7 +59,9 @@
                 Submitted by <strong>{{ complaint.user.full_name if complaint.user else 'Unknown Student' }}</strong>
                 ({{ complaint.user.matric_no if complaint.user else 'N/A' }} — {{ complaint.user.email if complaint.user
                 else '' }})
-                on {{ complaint.created_at.strftime('%b %d, %Y at %I:%M %p') if complaint.created_at else 'N/A' }}
+                {% if complaint.created_at %}
+                on {{ complaint.created_at.strftime('%b %d, %Y at %I:%M %p') }}
+                {% endif %}
             </p>
 
             <hr
@@ -100,21 +102,22 @@
         <h3 style="margin-bottom: 1rem; color: var(--primary-color); font-weight: 800; font-size: 1.1rem;">Update Status
         </h3>
 
-        <form action="{{ url_for('update_status', complaint_id=complaint.id) }}" method="POST">
+        <!-- Fixed endpoint: update_complaint_status -->
+        <form action="{{ url_for('update_complaint_status', complaint_id=complaint.id) }}" method="POST">
             <div style="margin-bottom: 1.5rem;">
                 <label
                     style="display: block; margin-bottom: 0.5rem; font-weight: 600; font-size: 0.9rem; color: var(--text-color);">Resolution
                     State</label>
                 <select name="status" required
                     style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color, #444); border-radius: 6px; background-color: var(--bg-color, #121212); color: var(--text-color); font-size: 0.95rem;">
-                    {% for st in ['Pending', 'Under Review', 'In Progress', 'Resolved', 'Rejected'] %}
+                    {% for st in ['Pending', 'In Progress', 'Resolved', 'Rejected'] %}
                     <option value="{{ st }}" {% if complaint.status==st %}selected{% endif %}>{{ st }}</option>
                     {% endfor %}
                 </select>
             </div>
 
             <button type="submit"
-                style="width: 100%; padding: 0.85rem; background-color: var(--primary-color); color: #ffffff; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; transition: opacity 0.2s;">
+                style="width: 100%; padding: 0.85rem; background-color: var(--primary-color); color: #ffffff; border: none; border-radius: 6px; font-weight: 700; cursor: pointer;">
                 Save Status Update
             </button>
         </form>

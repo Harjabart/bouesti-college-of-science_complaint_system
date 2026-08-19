@@ -7,7 +7,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 
 # --- Configuration ---
-# Fix database URL format for SQLAlchemy if provided as postgres:// by Render
 db_url = os.environ.get('DATABASE_URL', 'sqlite:///complaints.db')
 if db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
@@ -27,8 +26,24 @@ app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_USERNAME')
 db = SQLAlchemy(app)
 mail = Mail(app)
 
-# Import models after db initialization to avoid circular imports
-from models import User, Complaint
+# Database Models
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    full_name = db.Column(db.String(150), nullable=False)
+    email = db.Column(db.String(150), unique=True, nullable=False)
+    matric_no = db.Column(db.String(50), unique=True, nullable=True)
+    department = db.Column(db.String(100), nullable=True)
+    password = db.Column(db.String(200), nullable=False)
+    is_admin = db.Column(db.Boolean, default=False)
+
+class Complaint(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(50), default='Pending')
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user = db.relationship('User', backref=db.backref('complaints', lazy=True))
 
 @app.before_first_request
 def create_tables():
@@ -38,32 +53,27 @@ def create_tables():
 
 @app.route('/')
 def index():
-    return render_template('login.html')
+    return redirect(url_for('login'))
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
         full_name = request.form.get('full_name', '').strip()
-        email = request.form.get('email', '').strip().lower()  # Force lowercase for mobile inputs
+        email = request.form.get('email', '').strip().lower()
         matric_no = request.form.get('matric_no', '').strip()
         department = request.form.get('department', '').strip()
         password = request.form.get('password')
 
-        # --- Email & Student Validation Rule ---
-        # Checks if email ends with @bouesti.edu.ng or any subdomain like .bouesti.edu.ng
-        is_valid_school_email = email.endswith('bouesti.edu.ng')
-        
-        if not is_valid_school_email:
-            flash('You cannot create an account because you are not recognized as a BOUESTI science student. Please use your official school email.', 'danger')
+        # Flexible email validation: Allows @bouesti.edu.ng and all subdomains
+        if not (email.endswith('bouesti.edu.ng') or '@bouesti.edu.ng' in email):
+            flash('You cannot create an account because you are not recognized as a BOUESTI student.', 'danger')
             return redirect(url_for('register'))
 
-        # Check if user or matric number already exists
         existing_user = User.query.filter((User.email == email) | (User.matric_no == matric_no)).first()
         if existing_user:
             flash('Email or Matriculation Number already registered.', 'warning')
             return redirect(url_for('register'))
 
-        # Create new student account
         hashed_password = generate_password_hash(password, method='sha256')
         new_user = User(
             full_name=full_name,
@@ -103,13 +113,73 @@ def login():
 
     return render_template('login.html')
 
+@app.route('/student/dashboard')
+def student_dashboard():
+    if 'user_id' not in session or session.get('is_admin'):
+        return redirect(url_for('login'))
+    
+    complaints = Complaint.query.filter_by(user_id=session['user_id']).all()
+    return render_template('student_dashboard.html', complaints=complaints)
+
+@app.route('/submit_complaint', methods=['GET', 'POST'])
+def submit_complaint():
+    if 'user_id' not in session or session.get('is_admin'):
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        title = request.form.get('title')
+        description = request.form.get('description')
+
+        new_complaint = Complaint(
+            title=title,
+            description=description,
+            user_id=session['user_id']
+        )
+        db.session.add(new_complaint)
+        db.session.commit()
+
+        flash('Complaint submitted successfully!', 'success')
+        return redirect(url_for('student_dashboard'))
+
+    return render_template('submit_complaint.html')
+
+@app.route('/admin/dashboard')
+def admin_dashboard():
+    if 'user_id' not in session or not session.get('is_admin'):
+        return redirect(url_for('login'))
+
+    complaints = Complaint.query.all()
+    return render_template('admin_dashboard.html', complaints=complaints)
+
+@app.route('/admin/update_status/<int:complaint_id>', methods=['POST'])
+def update_status(complaint_id):
+    if 'user_id' not in session or not session.get('is_admin'):
+        return redirect(url_for('login'))
+
+    complaint = Complaint.query.get_or_404(complaint_id)
+    new_status = request.form.get('status')
+    complaint.status = new_status
+    db.session.commit()
+
+    # Send email notification to student
+    try:
+        msg = Message(
+            f"Complaint Status Update: {complaint.title}",
+            recipients=[complaint.user.email]
+        )
+        msg.body = f"Hello {complaint.user.full_name},\n\nYour complaint titled '{complaint.title}' status has been updated to: {new_status}.\n\nBest regards,\nBOUESTI College of Science"
+        mail.send(msg)
+    except Exception as e:
+        flash(f'Status updated, but email sending failed: {str(e)}', 'warning')
+
+    flash('Complaint status updated successfully!', 'success')
+    return redirect(url_for('admin_dashboard'))
+
 @app.route('/logout')
 def logout():
     session.clear()
     flash('You have been logged out.', 'info')
     return redirect(url_for('login'))
-
-# Additional application routes (student_dashboard, submit_complaint, admin_dashboard, etc.) continue below...
 
 if __name__ == '__main__':
     app.run(debug=True)

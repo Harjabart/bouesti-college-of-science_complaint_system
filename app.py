@@ -2,7 +2,7 @@ import os
 import random
 import string
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -146,6 +146,7 @@ def login():
         if user and check_password_hash(user.password, password):
             login_user(user)
             if user.is_admin:
+                session['is_admin'] = True
                 return redirect(url_for('admin_dashboard'))
             return redirect(url_for('student_dashboard'))
         else:
@@ -164,6 +165,7 @@ def admin_login():
         if user and check_password_hash(user.password, password):
             if user.is_admin:
                 login_user(user)
+                session['is_admin'] = True
                 flash('Welcome to Admin Portal', 'success')
                 return redirect(url_for('admin_dashboard'))
             else:
@@ -177,6 +179,7 @@ def admin_login():
 @app.route('/logout')
 @login_required
 def logout():
+    session.pop('is_admin', None)
     logout_user()
     flash('You have been logged out.', 'info')
     return redirect(url_for('login'))
@@ -243,13 +246,25 @@ def admin_dashboard():
         flash('Unauthorized access.', 'danger')
         return redirect(url_for('student_dashboard'))
 
-    # Retrieve all complaints ordered by most recent
     complaints = Complaint.query.order_by(Complaint.created_at.desc()).all()
     return render_template('admin/dashboard.html', complaints=complaints)
 
 
-# Route function name matched with template: update_complaint_status
+# Detailed inspection view route for individual complaints
+@app.route('/admin/complaint/<int:complaint_id>')
+@login_required
+def view_complaint(complaint_id):
+    if not current_user.is_admin:
+        flash('Unauthorized access.', 'danger')
+        return redirect(url_for('student_dashboard'))
+
+    complaint = Complaint.query.get_or_404(complaint_id)
+    return render_template('admin/view_complaint.html', complaint=complaint)
+
+
+# Route function matched with templates for status updates
 @app.route('/admin/update-status/<int:complaint_id>', methods=['POST'])
+@app.route('/admin/complaint/<int:complaint_id>/update', methods=['POST'])
 @login_required
 def update_complaint_status(complaint_id):
     if not current_user.is_admin:
@@ -265,6 +280,13 @@ def update_complaint_status(complaint_id):
         flash(f'Status for complaint {complaint.reference_number} updated to "{new_status}".', 'success')
 
     return redirect(request.referrer or url_for('admin_dashboard'))
+
+
+# Alias endpoint for update_status
+@app.route('/admin/update_status/<int:complaint_id>', methods=['POST'])
+@login_required
+def update_status(complaint_id):
+    return update_complaint_status(complaint_id)
 
 
 # =========================================================================

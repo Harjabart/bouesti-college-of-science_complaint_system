@@ -64,7 +64,7 @@ def register():
         department = request.form.get('department', '').strip()
         password = request.form.get('password')
 
-        # Flexible email validation: Allows @bouesti.edu.ng and all subdomains
+        # Flexible domain validation: matches @bouesti.edu.ng and subdomains
         if not (email.endswith('bouesti.edu.ng') or '@bouesti.edu.ng' in email):
             flash('You cannot create an account because you are not recognized as a BOUESTI student.', 'danger')
             return redirect(url_for('register'))
@@ -74,7 +74,8 @@ def register():
             flash('Email or Matriculation Number already registered.', 'warning')
             return redirect(url_for('register'))
 
-        hashed_password = generate_password_hash(password, method='sha256')
+        # Fixed hashing compatible with Werkzeug 3.0+
+        hashed_password = generate_password_hash(password)
         new_user = User(
             full_name=full_name,
             email=email,
@@ -161,7 +162,7 @@ def update_status(complaint_id):
     complaint.status = new_status
     db.session.commit()
 
-    # Send email notification to student
+    # Send status email notification
     try:
         msg = Message(
             f"Complaint Status Update: {complaint.title}",

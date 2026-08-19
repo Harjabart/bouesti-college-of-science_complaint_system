@@ -61,10 +61,19 @@ def index():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        email = request.form.get('email', '').strip().lower()
+        # Accept input from form fields named 'email', 'identifier', or 'username'
+        identifier = (
+            request.form.get('email') or 
+            request.form.get('identifier') or 
+            request.form.get('username') or ''
+        ).strip().lower()
+        
         password = request.form.get('password')
 
-        user = User.query.filter_by(email=email).first()
+        # Allow login via Email OR Matriculation Number
+        user = User.query.filter(
+            (User.email == identifier) | (User.matric_no == identifier)
+        ).first()
 
         if user and check_password_hash(user.password, password):
             session['user_id'] = user.id
@@ -75,7 +84,7 @@ def login():
                 return redirect(url_for('admin_dashboard'))
             return redirect(url_for('student_dashboard'))
         else:
-            flash('Invalid email or password.', 'danger')
+            flash('Invalid email/matric number or password.', 'danger')
 
     return render_template('login.html')
 

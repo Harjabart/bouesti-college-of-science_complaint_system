@@ -1,159 +1,122 @@
 import os
-import time
-import secrets
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+import random
+import string
+from datetime import datetime
+from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
-from flask_mail import Mail, Message
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 
-# --- Configuration ---
-db_url = os.environ.get('DATABASE_URL', 'sqlite:///complaints.db')
-if db_url.startswith("postgres://"):
-    db_url = db_url.replace("postgres://", "postgresql://", 1)
-
-app.config['SQLALCHEMY_DATABASE_URI'] = db_url
+# Secret key & Configuration
+app.config['SECRET_KEY'] = 'bouesti-complaint-portal-secret-key-2026'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default_secret_key')
 
-# Uploads Configuration
-UPLOAD_FOLDER = os.path.join(app.root_path, 'static/uploads')
-ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg'}
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5 MB Limit
-
+# Configure Upload Folder Path
+UPLOAD_FOLDER = os.path.join(app.root_path, 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-# Flask-Mail Config
-app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
-app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 465))
-app.config['MAIL_USE_SSL'] = os.environ.get('MAIL_USE_SSL', 'True').lower() in ['true', 'on', '1']
-app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
-app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_USERNAME')
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'pdf', 'doc', 'docx'}
 
 db = SQLAlchemy(app)
-mail = Mail(app)
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'
 
-# --- Database Models ---
-class User(db.Model):
+# Helper function to check allowed file extensions
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+
+# Helper function to generate unique Reference ID (e.g., BOUESTI-8F92A)
+def generate_ref_id():
+    chars = string.ascii_uppercase + string.digits
+    random_str = ''.join(random.choices(chars, k=5))
+    return f"BOUESTI-{random_str}"
+
+
+# =========================================================================
+# DATABASE MODELS
+# =========================================================================
+
+class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     full_name = db.Column(db.String(150), nullable=False)
     email = db.Column(db.String(150), unique=True, nullable=False)
-    matric_no = db.Column(db.String(50), unique=True, nullable=True)
-    department = db.Column(db.String(100), nullable=True)
-    password = db.Column(db.String(200), nullable=False)
+    matric_no = db.Column(db.String(50), nullable=True)
+    password = db.Column(db.String(255), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)
+    complaints = db.relationship('Complaint', backref='user', lazy=True)
 
 class Complaint(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     reference_number = db.Column(db.String(50), unique=True, nullable=False)
-    category = db.Column(db.String(100), nullable=True, default='General')
+    category = db.Column(db.String(100), nullable=False, default='General')
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=False)
-    attachment = db.Column(db.String(255), nullable=True)
     status = db.Column(db.String(50), default='Pending')
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    filename = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    user = db.relationship('User', backref=db.backref('complaints', lazy=True))
 
-    # Safe alias properties for Jinja2 template compatibility
-    @property
-    def subject(self):
-        return self.title
 
-    @property
-    def submission_date(self):
-        return self.created_at
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
-# --- Startup Database Schema Sync ---
+
+# =========================================================================
+# INITIALIZATION (AUTO-CREATE DB & ADMIN USER)
+# =========================================================================
+
 with app.app_context():
-    try:
-        db.create_all()
-        # Auto-patch new columns on PostgreSQL instance
-        if 'postgresql' in db_url:
-            db.session.execute(db.text("ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS department VARCHAR(100);"))
-            db.session.execute(db.text("ALTER TABLE complaint ADD COLUMN IF NOT EXISTS reference_number VARCHAR(50);"))
-            db.session.execute(db.text("ALTER TABLE complaint ADD COLUMN IF NOT EXISTS category VARCHAR(100);"))
-            db.session.execute(db.text("ALTER TABLE complaint ADD COLUMN IF NOT EXISTS attachment VARCHAR(255);"))
-            db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        print(f"Database auto-patch notification: {e}")
+    db.create_all()
+    
+    # Auto-seed Default Admin Account if it doesn't exist
+    admin_email = "admin@bouesti.edu.ng"
+    existing_admin = User.query.filter_by(email=admin_email).first()
+    if not existing_admin:
+        default_admin = User(
+            full_name="Portal Administrator",
+            email=admin_email,
+            matric_no="ADMIN/001",
+            password=generate_password_hash("admin123"),
+            is_admin=True
+        )
+        db.session.add(default_admin)
+        db.session.commit()
+        print("Default admin account created: admin@bouesti.edu.ng / admin123")
 
-# --- Helper Functions ---
-def generate_ref_code():
-    return f"BOUESTI-2026-{secrets.token_hex(2).upper()}"
 
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-# --- Routes ---
+# =========================================================================
+# GENERAL & FILE ROUTES
+# =========================================================================
 
 @app.route('/')
-def index():
+def home():
     return render_template('index.html')
 
-@app.route('/track', methods=['GET', 'POST'])
-def track_complaint():
-    complaint = None
-    searched_ref = ""
+# Route to serve uploaded evidence attachments safely
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
-    if request.method == 'POST':
-        searched_ref = request.form.get('reference_number', '').strip().upper()
-        if searched_ref:
-            complaint = Complaint.query.filter_by(reference_number=searched_ref).first()
-            if not complaint:
-                flash(f"No complaint found with Reference ID: {searched_ref}", "warning")
 
-    return render_template('track.html', complaint=complaint, searched_ref=searched_ref)
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        identifier = (
-            request.form.get('email') or 
-            request.form.get('identifier') or 
-            request.form.get('username') or ''
-        ).strip().lower()
-        
-        password = request.form.get('password')
-
-        user = User.query.filter(
-            (User.email == identifier) | (User.matric_no == identifier)
-        ).first()
-
-        if user and check_password_hash(user.password, password):
-            session['user_id'] = user.id
-            session['full_name'] = user.full_name
-            session['is_admin'] = user.is_admin
-
-            if user.is_admin:
-                return redirect(url_for('admin_dashboard'))
-            return redirect(url_for('student_dashboard'))
-        else:
-            flash('Invalid email/matric number or password.', 'danger')
-
-    return render_template('login.html')
+# =========================================================================
+# AUTHENTICATION ROUTES
+# =========================================================================
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        full_name = request.form.get('full_name', '').strip()
-        email = request.form.get('email', '').strip().lower()
-        matric_no = request.form.get('matric_no', '').strip()
-        department = request.form.get('department', '').strip()
+        full_name = request.form.get('full_name')
+        email = request.form.get('email')
+        matric_no = request.form.get('matric_no')
         password = request.form.get('password')
 
-        if not (email.endswith('bouesti.edu.ng') or '@bouesti.edu.ng' in email):
-            flash('You cannot create an account because you are not recognized as a BOUESTI student.', 'danger')
-            return redirect(url_for('register'))
-
-        existing_user = User.query.filter((User.email == email) | (User.matric_no == matric_no)).first()
-        if existing_user:
-            flash('Email or Matriculation Number already registered.', 'warning')
+        if User.query.filter_by(email=email).first():
+            flash('Email address is already registered.', 'danger')
             return redirect(url_for('register'))
 
         hashed_password = generate_password_hash(password)
@@ -161,11 +124,9 @@ def register():
             full_name=full_name,
             email=email,
             matric_no=matric_no,
-            department=department,
             password=hashed_password,
             is_admin=False
         )
-
         db.session.add(new_user)
         db.session.commit()
 
@@ -174,107 +135,150 @@ def register():
 
     return render_template('register.html')
 
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+
+        user = User.query.filter_by(email=email).first()
+        if user and check_password_hash(user.password, password):
+            login_user(user)
+            if user.is_admin:
+                return redirect(url_for('admin_dashboard'))
+            return redirect(url_for('student_dashboard'))
+        else:
+            flash('Invalid login credentials.', 'danger')
+
+    return render_template('login.html')
+
+
+@app.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+
+        user = User.query.filter_by(email=email).first()
+        if user and check_password_hash(user.password, password):
+            if user.is_admin:
+                login_user(user)
+                flash('Welcome to Admin Portal', 'success')
+                return redirect(url_for('admin_dashboard'))
+            else:
+                flash('Access denied. Account lacks administrator privileges.', 'danger')
+        else:
+            flash('Invalid admin credentials.', 'danger')
+
+    return render_template('admin/login.html')
+
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('You have been logged out.', 'info')
+    return redirect(url_for('login'))
+
+
+# =========================================================================
+# STUDENT ROUTES
+# =========================================================================
+
 @app.route('/student/dashboard')
+@login_required
 def student_dashboard():
-    if 'user_id' not in session or session.get('is_admin'):
-        return redirect(url_for('login'))
-    
-    complaints = Complaint.query.filter_by(user_id=session['user_id']).order_by(Complaint.created_at.desc()).all()
-    return render_template('student_dashboard.html', complaints=complaints)
+    if current_user.is_admin:
+        return redirect(url_for('admin_dashboard'))
 
-@app.route('/submit_complaint', methods=['GET', 'POST'])
+    complaints = Complaint.query.filter_by(user_id=current_user.id).order_by(Complaint.created_at.desc()).all()
+    return render_template('student/dashboard.html', complaints=complaints)
+
+
+@app.route('/student/submit-complaint', methods=['GET', 'POST'])
+@login_required
 def submit_complaint():
-    if 'user_id' not in session or session.get('is_admin'):
-        return redirect(url_for('login'))
-
     if request.method == 'POST':
         category = request.form.get('category', 'General')
         title = request.form.get('title')
         description = request.form.get('description')
-        ref_number = generate_ref_code()
-
+        
         filename = None
-        if 'attachment' in request.files:
-            file = request.files['attachment']
+        if 'file' in request.files:
+            file = request.files['file']
             if file and file.filename != '' and allowed_file(file.filename):
-                ext = file.filename.rsplit('.', 1)[1].lower()
-                safe_name = secure_filename(file.filename.rsplit('.', 1)[0])
-                filename = f"{ref_number}_{int(time.time())}_{safe_name}.{ext}"
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                saved_filename = secure_filename(file.filename)
+                unique_prefix = datetime.now().strftime('%Y%m%d%H%M%S_')
+                final_filename = unique_prefix + saved_filename
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], final_filename))
+                filename = final_filename
 
         new_complaint = Complaint(
-            reference_number=ref_number,
+            reference_number=generate_ref_id(),
             category=category,
             title=title,
             description=description,
-            attachment=filename,
-            user_id=session['user_id']
+            filename=filename,
+            user_id=current_user.id
         )
+
         db.session.add(new_complaint)
         db.session.commit()
 
-        flash(f'Complaint submitted! Tracking Reference: {ref_number}', 'success')
+        flash('Complaint submitted successfully!', 'success')
         return redirect(url_for('student_dashboard'))
 
-    return render_template('submit_complaint.html')
+    return render_template('student/submit_complaint.html')
+
+
+# =========================================================================
+# ADMIN ROUTES
+# =========================================================================
 
 @app.route('/admin/dashboard')
+@login_required
 def admin_dashboard():
-    if 'user_id' not in session or not session.get('is_admin'):
-        return redirect(url_for('login'))
+    if not current_user.is_admin:
+        flash('Unauthorized access.', 'danger')
+        return redirect(url_for('student_dashboard'))
 
     complaints = Complaint.query.order_by(Complaint.created_at.desc()).all()
-    return render_template('admin_dashboard.html', complaints=complaints)
+    return render_template('admin/dashboard.html', complaints=complaints)
 
-@app.route('/admin/update_status/<int:complaint_id>', methods=['POST'])
+
+@app.route('/admin/review/<int:complaint_id>')
+@login_required
+def review_complaint(complaint_id):
+    if not current_user.is_admin:
+        flash('Unauthorized access.', 'danger')
+        return redirect(url_for('student_dashboard'))
+
+    complaint = Complaint.query.get_or_404(complaint_id)
+    return render_template('admin/review_complaint.html', complaint=complaint)
+
+
+@app.route('/admin/update-status/<int:complaint_id>', methods=['POST'])
+@login_required
 def update_status(complaint_id):
-    if 'user_id' not in session or not session.get('is_admin'):
-        return redirect(url_for('login'))
+    if not current_user.is_admin:
+        flash('Unauthorized access.', 'danger')
+        return redirect(url_for('student_dashboard'))
 
     complaint = Complaint.query.get_or_404(complaint_id)
     new_status = request.form.get('status')
-    complaint.status = new_status
-    db.session.commit()
 
-    try:
-        msg = Message(
-            f"Complaint Status Update: {complaint.reference_number}",
-            recipients=[complaint.user.email]
-        )
-        msg.body = f"Hello {complaint.user.full_name},\n\nYour complaint [{complaint.reference_number}] '{complaint.title}' status has been updated to: {new_status}.\n\nBest regards,\nBOUESTI College of Science"
-        mail.send(msg)
-    except Exception as e:
-        flash(f'Status updated, but email notification failed: {str(e)}', 'warning')
+    if new_status:
+        complaint.status = new_status
+        db.session.commit()
+        flash(f'Complaint {complaint.reference_number} updated to {new_status}.', 'success')
 
-    flash('Complaint status updated successfully!', 'success')
-    return redirect(url_for('admin_dashboard'))
+    return redirect(request.referrer or url_for('admin_dashboard'))
 
-@app.route('/logout')
-def logout():
-    session.clear()
-    flash('You have been logged out.', 'info')
-    return redirect(url_for('login'))
 
-@app.route('/fix-db-schema-2026')
-def fix_db_schema():
-    try:
-        with app.app_context():
-            db.session.execute(db.text("ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS department VARCHAR(100);"))
-            db.session.execute(db.text("ALTER TABLE complaint ADD COLUMN IF NOT EXISTS reference_number VARCHAR(50);"))
-            db.session.execute(db.text("ALTER TABLE complaint ADD COLUMN IF NOT EXISTS category VARCHAR(100);"))
-            db.session.execute(db.text("ALTER TABLE complaint ADD COLUMN IF NOT EXISTS attachment VARCHAR(255);"))
-            db.create_all()
-            db.session.commit()
-        return "Database schema patched successfully! Return to /login and try logging in."
-    except Exception as e:
-        try:
-            db.session.rollback()
-            db.drop_all()
-            db.create_all()
-            db.session.commit()
-            return "Database tables reset and recreated cleanly! Register a new user and log in."
-        except Exception as drop_err:
-            return f"Database repair failed: {str(drop_err)}"
+# =========================================================================
+# RUN APPLICATION
+# =========================================================================
 
 if __name__ == '__main__':
     app.run(debug=True)

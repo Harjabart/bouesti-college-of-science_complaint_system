@@ -243,24 +243,15 @@ def admin_dashboard():
         flash('Unauthorized access.', 'danger')
         return redirect(url_for('student_dashboard'))
 
+    # Retrieve all complaints ordered by most recent
     complaints = Complaint.query.order_by(Complaint.created_at.desc()).all()
     return render_template('admin/dashboard.html', complaints=complaints)
 
 
-@app.route('/admin/review/<int:complaint_id>')
-@login_required
-def review_complaint(complaint_id):
-    if not current_user.is_admin:
-        flash('Unauthorized access.', 'danger')
-        return redirect(url_for('student_dashboard'))
-
-    complaint = Complaint.query.get_or_404(complaint_id)
-    return render_template('admin/review_complaint.html', complaint=complaint)
-
-
+# Route function name matched with template: update_complaint_status
 @app.route('/admin/update-status/<int:complaint_id>', methods=['POST'])
 @login_required
-def update_status(complaint_id):
+def update_complaint_status(complaint_id):
     if not current_user.is_admin:
         flash('Unauthorized access.', 'danger')
         return redirect(url_for('student_dashboard'))
@@ -271,7 +262,7 @@ def update_status(complaint_id):
     if new_status:
         complaint.status = new_status
         db.session.commit()
-        flash(f'Complaint {complaint.reference_number} updated to {new_status}.', 'success')
+        flash(f'Status for complaint {complaint.reference_number} updated to "{new_status}".', 'success')
 
     return redirect(request.referrer or url_for('admin_dashboard'))
 

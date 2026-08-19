@@ -1,44 +1,100 @@
 {% extends 'base.html' %}
 
-{% block title %}Welcome - BOUESTI College of Science Complaint System{% endblock %}
+{% block title %}Home - BOUESTI College of Science Complaint System{% endblock %}
 
 {% block content %}
-<div style="text-align: center; padding: 3rem 1rem;">
-    <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">
-        Welcome to BOUESTI College of Science <span style="color: var(--primary-color);">Complaint Portal</span>
+<div class="hero-section" style="text-align: center; padding: 3.5rem 1rem 2.5rem 1rem;">
+    <span
+        style="background-color: rgba(224, 86, 36, 0.12); color: var(--primary-color); padding: 0.4rem 1rem; border-radius: 20px; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; display: inline-block; margin-bottom: 1.2rem;">
+        Official College of Science Portal
+    </span>
+
+    <h1 style="font-size: 2.8rem; line-height: 1.2; margin-bottom: 1.2rem; font-weight: 800;">
+        BOUESTI College of Science <br>
+        <span style="color: var(--primary-color);">Student Complaint Portal</span>
     </h1>
-    <p style="font-size: 1.2rem; color: var(--text-muted); max-width: 700px; margin: 0 auto 2rem auto;">
-        A transparent, real-time platform designed for College of Science students to log, track, and resolve academic
-        and administrative grievances efficiently.
+
+    <p
+        style="font-size: 1.15rem; color: var(--text-muted); max-width: 680px; margin: 0 auto 2.5rem auto; line-height: 1.6;">
+        A transparent, real-time resolution system designed for College of Science students to log, track, and resolve
+        academic and administrative grievances efficiently.
     </p>
 
-    <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+    <!-- Main Call to Actions -->
+    <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 3.5rem;">
         {% if session.get('user_id') %}
         {% if session.get('is_admin') %}
-        <a href="{{ url_for('admin_dashboard') }}"
-            style="background-color: var(--primary-color); color: #fff; padding: 0.8rem 1.8rem; border-radius: 5px; text-decoration: none; font-weight: bold;">
-            Go to Admin Portal
+        <a href="{{ url_for('admin_dashboard') }}" class="btn-primary"
+            style="background-color: var(--primary-color); color: #ffffff; padding: 0.85rem 2rem; border-radius: 6px; text-decoration: none; font-weight: 700; box-shadow: 0 4px 12px rgba(224, 86, 36, 0.25); transition: transform 0.2s;">
+            Go to Admin Portal →
         </a>
         {% else %}
-        <a href="{{ url_for('submit_complaint') }}"
-            style="background-color: var(--primary-color); color: #fff; padding: 0.8rem 1.8rem; border-radius: 5px; text-decoration: none; font-weight: bold;">
+        <a href="{{ url_for('submit_complaint') }}" class="btn-primary"
+            style="background-color: var(--primary-color); color: #ffffff; padding: 0.85rem 2rem; border-radius: 6px; text-decoration: none; font-weight: 700; box-shadow: 0 4px 12px rgba(224, 86, 36, 0.25);">
             Submit a Complaint
         </a>
-        <a href="{{ url_for('student_dashboard') }}"
-            style="border: 2px solid var(--secondary-color); color: var(--text-color); padding: 0.8rem 1.8rem; border-radius: 5px; text-decoration: none; font-weight: bold;">
-            Track Status
+        <a href="{{ url_for('student_dashboard') }}" class="btn-secondary"
+            style="border: 2px solid var(--primary-color); color: var(--text-color); padding: 0.85rem 2rem; border-radius: 6px; text-decoration: none; font-weight: 700;">
+            View My Complaints
         </a>
         {% endif %}
         {% else %}
-        <a href="{{ url_for('login') }}"
-            style="background-color: var(--primary-color); color: #fff; padding: 0.8rem 1.8rem; border-radius: 5px; text-decoration: none; font-weight: bold;">
+        <a href="{{ url_for('login') }}" class="btn-primary"
+            style="background-color: var(--primary-color); color: #ffffff; padding: 0.85rem 2rem; border-radius: 6px; text-decoration: none; font-weight: 700; box-shadow: 0 4px 12px rgba(224, 86, 36, 0.25);">
             Login to Submit Complaint
         </a>
-        <a href="{{ url_for('register') }}"
-            style="border: 2px solid var(--secondary-color); color: var(--text-color); padding: 0.8rem 1.8rem; border-radius: 5px; text-decoration: none; font-weight: bold;">
+        <a href="{{ url_for('register') }}" class="btn-secondary"
+            style="border: 2px solid var(--secondary-color, #333); color: var(--text-color); padding: 0.85rem 2rem; border-radius: 6px; text-decoration: none; font-weight: 700;">
             Register Student Account
         </a>
         {% endif %}
+    </div>
+
+    <!-- Quick Reference Search Bar -->
+    <div
+        style="max-width: 550px; margin: 0 auto 4rem auto; background: var(--card-bg, #1e1e1e); padding: 1.5rem; border-radius: 10px; border: 1px solid var(--border-color, rgba(255,255,255,0.1)); shadow: 0 4px 20px rgba(0,0,0,0.08);">
+        <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.8rem; color: var(--text-color);">Have a Reference
+            ID? Track instantly</h3>
+        <form action="{{ url_for('track_complaint') }}" method="POST" style="display: flex; gap: 0.5rem;">
+            <input type="text" name="reference_number" placeholder="e.g. BOUESTI-2026-A1B2" required
+                style="flex: 1; padding: 0.75rem 1rem; border-radius: 5px; border: 1px solid var(--border-color, #444); background: var(--input-bg, #121212); color: var(--text-color); font-size: 0.95rem;">
+            <button type="submit"
+                style="background-color: var(--primary-color); color: #fff; border: none; padding: 0.75rem 1.2rem; border-radius: 5px; font-weight: 600; cursor: pointer;">
+                Track
+            </button>
+        </form>
+    </div>
+
+    <!-- Key Platform Highlights -->
+    <div
+        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; max-width: 1000px; margin: 0 auto; text-align: left;">
+        <div
+            style="padding: 1.5rem; background: var(--card-bg, #1e1e1e); border-radius: 8px; border: 1px solid var(--border-color, rgba(255,255,255,0.05));">
+            <div style="font-size: 1.8rem; margin-bottom: 0.5rem;">⚡</div>
+            <h4 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--text-color);">Real-Time Updates</h4>
+            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.5;">
+                Track the exact resolution status of your complaint from <strong>Pending</strong> to
+                <strong>Resolved</strong>.
+            </p>
+        </div>
+
+        <div
+            style="padding: 1.5rem; background: var(--card-bg, #1e1e1e); border-radius: 8px; border: 1px solid var(--border-color, rgba(255,255,255,0.05));">
+            <div style="font-size: 1.8rem; margin-bottom: 0.5rem;">📂</div>
+            <h4 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--text-color);">Evidence Attachments</h4>
+            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.5;">
+                Attach PDF documents or image proof directly to your submission for faster departmental action.
+            </p>
+        </div>
+
+        <div
+            style="padding: 1.5rem; background: var(--card-bg, #1e1e1e); border-radius: 8px; border: 1px solid var(--border-color, rgba(255,255,255,0.05));">
+            <div style="font-size: 1.8rem; margin-bottom: 0.5rem;">🔒</div>
+            <h4 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--text-color);">Verified Access</h4>
+            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.5;">
+                Restricted exclusively to BOUESTI College of Science matriculated students via official campus email.
+            </p>
+        </div>
     </div>
 </div>
 {% endblock %}

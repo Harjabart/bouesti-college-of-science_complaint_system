@@ -99,6 +99,37 @@ def login():
             
     return render_template('login.html')
 
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+        
+    if request.method == 'POST':
+        full_name = str(request.form.get('full_name', '')).strip()
+        email = str(request.form.get('email', '')).strip()
+        matric_no = str(request.form.get('matric_no', '')).strip()
+        password = str(request.form.get('password', ''))
+        
+        if User.query.filter_by(email=email).first():
+            flash('Email address already registered.', 'danger')
+            return render_template('register.html')
+            
+        hashed_pw = generate_password_hash(password, method='pbkdf2:sha256')
+        new_user = User(
+            full_name=full_name,
+            email=email,
+            matric_no=matric_no,
+            role='Student',
+            password_hash=hashed_pw
+        )
+        db.session.add(new_user)
+        db.session.commit()
+        
+        flash('Registration successful! Please log in.', 'success')
+        return redirect(url_for('login'))
+        
+    return render_template('register.html')
+
 @app.route('/logout')
 @login_required
 def logout():
@@ -142,16 +173,24 @@ def admin_dashboard():
     return render_template('admin/dashboard.html', complaints=complaints)
 
 # =========================================================================
-# 4. SAFE AUTOMATIC DATABASE BOOTSTRAPPER
+# 4. SAFE BOOTSTRAPPER WITH TABLE RE-SYNC
 # =========================================================================
 @app.before_request
 def ensure_db_initialized():
-    """Runs once on the very first web request to safely initialize DB tables & seeds."""
     if getattr(app, '_db_initialized', False):
         return
 
     try:
         db.create_all()
+
+        # Check if users table has matric_no column; if not, drop & recreate tables cleanly
+        with db.engine.connect() as conn:
+            from sqlalchemy import inspect
+            inspector = inspect(db.engine)
+            columns = [c['name'] for c in inspector.get_columns('users')]
+            if 'matric_no' not in columns:
+                db.drop_all()
+                db.create_all()
 
         # Seed Default Complaint Categories
         default_categories = [
@@ -190,7 +229,7 @@ def ensure_db_initialized():
         print(f"Database Initialization Note: {e}")
 
 # =========================================================================
-# 5. LOCAL ENTRY POINT
+# 5. ENTRY POINT
 # =========================================================================
 if __name__ == '__main__':
     app.run(debug=True)

@@ -3,62 +3,72 @@ import random
 import string
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory, session
-from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from flask_mail import Mail, Message
 from werkzeug.utils import secure_filename
+
+# Import Configuration and Models
+from config import config
+from models import db, User, Category, Complaint, StatusHistory
 
 app = Flask(__name__)
 
-# Secret key & Configuration
-app.config['SECRET_KEY'] = 'bouesti-complaint-portal-secret-key-2026'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Load Configuration Class based on Environment Variable
+env = os.environ.get('FLASK_ENV', 'default')
+app.config.from_object(config[env])
 
-# Configure Upload Folder Path
-UPLOAD_FOLDER = os.path.join(app.root_path, 'uploads')
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'pdf', 'doc', 'docx'}
+# Ensure Upload Folder Exists
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-db = SQLAlchemy(app)
+# Extension Initializations
+db.init_app(app)
+mail = Mail(app)
+
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
+login_manager.login_message_category = 'danger'
 
-# Helper function to check allowed file extensions
+
+# =========================================================================
+# HELPER FUNCTIONS
+# =========================================================================
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
-# Helper function to generate unique Reference ID (e.g., BOUESTI-8F92A)
 def generate_ref_id():
     chars = string.ascii_uppercase + string.digits
-    random_str = ''.join(random.choices(chars, k=5))
-    return f"BOUESTI-{random_str}"
+    random_str = ''.join(random.choices(chars, k=4))
+    return f"CSC-{datetime.now().year}-{random_str}"
 
+def send_status_email(user_email, ref_number, new_status, subject):
+    """Sends a background email notification on status change if credentials are set."""
+    if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
+        app.logger.info("Mail credentials missing. Skipping email dispatch.")
+        return
 
-# =========================================================================
-# DATABASE MODELS
-# =========================================================================
+    try:
+        msg = Message(
+            subject=f"Complaint Status Update: {ref_number}",
+            recipients=[user_email]
+        )
+        msg.body = f"""Hello,
 
-class User(UserMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    full_name = db.Column(db.String(150), nullable=False)
-    email = db.Column(db.String(150), unique=True, nullable=False)
-    matric_no = db.Column(db.String(50), nullable=True)
-    password = db.Column(db.String(255), nullable=False)
-    is_admin = db.Column(db.Boolean, default=False)
-    complaints = db.relationship('Complaint', backref='user', lazy=True)
+The status of your complaint "{subject}" (Ref: {ref_number}) has been updated to: {new_status}.
 
-class Complaint(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    reference_number = db.Column(db.String(50), unique=True, nullable=False)
-    category = db.Column(db.String(100), nullable=False, default='General')
-    title = db.Column(db.String(200), nullable=False)
-    description = db.Column(db.Text, nullable=False)
-    status = db.Column(db.String(50), default='Pending')
-    filename = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+Log into the BOUESTI Complaint Portal to view full details and official remarks.
+
+Best regards,
+BOUESTI Complaint Resolution Office
+"""
+        mail.send(msg)
+    except Exception as e:
+        app.logger.error(f"Failed to send status update email: {str(e)}")
+
+# Template Context Processor
+@app.context_processor
+def inject_globals():
+    return {'datetime': datetime}
 
 
 @login_manager.user_loader
@@ -67,38 +77,51 @@ def load_user(user_id):
 
 
 # =========================================================================
-# INITIALIZATION (AUTO-CREATE DB & ADMIN USER)
+# INITIALIZATION & DATABASE SEEDING
 # =========================================================================
 
 with app.app_context():
     db.create_all()
-    
-    # Auto-seed Default Admin Account if it doesn't exist
+
+    # Seed Default Categories
+    default_categories = [
+        ('Academic Issues', 'Concerns related to grades, lectures, or academic records.'),
+        ('Laboratory Concerns', 'Issues involving lab equipment, sessions, or practicals.'),
+        ('Facilities & ICT', 'Complaints regarding portal access, network, or hardware.'),
+        ('General Enquiry', 'Other institutional or administrative inquiries.')
+    ]
+    for cat_name, cat_desc in default_categories:
+        if not Category.query.filter_by(name=cat_name).first():
+            db.session.add(Category(name=cat_name, description=cat_desc))
+    db.session.commit()
+
+    # Seed Default Admin Account
     admin_email = "admin@bouesti.edu.ng"
     existing_admin = User.query.filter_by(email=admin_email).first()
     if not existing_admin:
-        default_admin = User(
+        admin = User(
             full_name="Portal Administrator",
             email=admin_email,
             matric_no="ADMIN/001",
-            password=generate_password_hash("admin123"),
+            role="SuperAdmin",
             is_admin=True
         )
-        db.session.add(default_admin)
+        admin.set_password("admin123")
+        db.session.add(admin)
         db.session.commit()
-        print("Default admin account created: admin@bouesti.edu.ng / admin123")
+        print("Default admin account initialized: admin@bouesti.edu.ng / admin123")
 
 
 # =========================================================================
-# GENERAL & FILE ROUTES
+# PUBLIC & FILE ROUTES
 # =========================================================================
 
 @app.route('/')
 def home():
     return render_template('index.html')
 
-# Route to serve uploaded evidence attachments safely
 @app.route('/uploads/<filename>')
+@login_required
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
@@ -109,24 +132,28 @@ def uploaded_file(filename):
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('student_dashboard'))
+
     if request.method == 'POST':
-        full_name = request.form.get('full_name')
-        email = request.form.get('email')
-        matric_no = request.form.get('matric_no')
+        full_name = request.form.get('full_name', '').strip()
+        email = request.form.get('email', '').strip().lower()
+        matric_no = request.form.get('matric_no', '').strip()
         password = request.form.get('password')
 
         if User.query.filter_by(email=email).first():
             flash('Email address is already registered.', 'danger')
             return redirect(url_for('register'))
 
-        hashed_password = generate_password_hash(password)
         new_user = User(
             full_name=full_name,
             email=email,
             matric_no=matric_no,
-            password=hashed_password,
+            role='Student',
             is_admin=False
         )
+        new_user.set_password(password)
+        
         db.session.add(new_user)
         db.session.commit()
 
@@ -138,14 +165,17 @@ def register():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('admin_dashboard' if current_user.is_admin else 'student_dashboard'))
+
     if request.method == 'POST':
-        email = request.form.get('email')
+        email = request.form.get('email', '').strip().lower()
         password = request.form.get('password')
 
         user = User.query.filter_by(email=email).first()
-        if user and check_password_hash(user.password, password):
+        if user and user.check_password(password):
             login_user(user)
-            if user.is_admin:
+            if user.is_admin or user.role in ['Admin', 'SuperAdmin']:
                 session['is_admin'] = True
                 return redirect(url_for('admin_dashboard'))
             return redirect(url_for('student_dashboard'))
@@ -157,13 +187,16 @@ def login():
 
 @app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
+    if current_user.is_authenticated and current_user.is_admin:
+        return redirect(url_for('admin_dashboard'))
+
     if request.method == 'POST':
-        email = request.form.get('email')
+        email = request.form.get('email', '').strip().lower()
         password = request.form.get('password')
 
         user = User.query.filter_by(email=email).first()
-        if user and check_password_hash(user.password, password):
-            if user.is_admin:
+        if user and user.check_password(password):
+            if user.is_admin or user.role in ['Admin', 'SuperAdmin']:
                 login_user(user)
                 session['is_admin'] = True
                 flash('Welcome to Admin Portal', 'success')
@@ -195,17 +228,23 @@ def student_dashboard():
     if current_user.is_admin:
         return redirect(url_for('admin_dashboard'))
 
-    complaints = Complaint.query.filter_by(user_id=current_user.id).order_by(Complaint.created_at.desc()).all()
+    complaints = Complaint.query.filter_by(student_id=current_user.id).order_by(Complaint.submission_date.desc()).all()
     return render_template('student/dashboard.html', complaints=complaints)
 
 
 @app.route('/student/submit-complaint', methods=['GET', 'POST'])
 @login_required
 def submit_complaint():
+    if current_user.is_admin:
+        return redirect(url_for('admin_dashboard'))
+
+    categories = Category.query.all()
+
     if request.method == 'POST':
-        category = request.form.get('category', 'General')
-        title = request.form.get('title')
-        description = request.form.get('description')
+        category_id = request.form.get('category_id')
+        subject = request.form.get('subject', '').strip()
+        description = request.form.get('description', '').strip()
+        priority = request.form.get('priority', 'Normal')
         
         filename = None
         if 'file' in request.files:
@@ -219,20 +258,33 @@ def submit_complaint():
 
         new_complaint = Complaint(
             reference_number=generate_ref_id(),
-            category=category,
-            title=title,
+            student_id=current_user.id,
+            category_id=int(category_id),
+            subject=subject,
             description=description,
+            priority=priority,
             filename=filename,
-            user_id=current_user.id
+            status='Submitted'
         )
 
         db.session.add(new_complaint)
+        db.session.flush()  # Obtain ID for status history
+
+        # Record initial status in history
+        history = StatusHistory(
+            complaint_id=new_complaint.id,
+            previous_status=None,
+            new_status='Submitted',
+            changed_by_id=current_user.id,
+            notes='Initial complaint submission.'
+        )
+        db.session.add(history)
         db.session.commit()
 
         flash('Complaint submitted successfully!', 'success')
         return redirect(url_for('student_dashboard'))
 
-    return render_template('student/submit_complaint.html')
+    return render_template('student/submit_complaint.html', categories=categories)
 
 
 # =========================================================================
@@ -242,51 +294,74 @@ def submit_complaint():
 @app.route('/admin/dashboard')
 @login_required
 def admin_dashboard():
-    if not current_user.is_admin:
+    if not current_user.is_admin and current_user.role not in ['Admin', 'SuperAdmin']:
         flash('Unauthorized access.', 'danger')
         return redirect(url_for('student_dashboard'))
 
-    complaints = Complaint.query.order_by(Complaint.created_at.desc()).all()
+    status_filter = request.args.get('status')
+    search_query = request.args.get('q', '').strip()
+
+    query = Complaint.query.join(User, Complaint.student_id == User.id)
+
+    if status_filter:
+        query = query.filter(Complaint.status == status_filter)
+
+    if search_query:
+        query = query.filter(
+            (Complaint.reference_number.ilike(f"%{search_query}%")) |
+            (Complaint.subject.ilike(f"%{search_query}%")) |
+            (User.full_name.ilike(f"%{search_query}%")) |
+            (User.matric_no.ilike(f"%{search_query}%"))
+        )
+
+    complaints = query.order_by(Complaint.submission_date.desc()).all()
     return render_template('admin/dashboard.html', complaints=complaints)
 
 
-# Detailed inspection view route for individual complaints
 @app.route('/admin/complaint/<int:complaint_id>')
 @login_required
 def view_complaint(complaint_id):
-    if not current_user.is_admin:
+    if not current_user.is_admin and current_user.role not in ['Admin', 'SuperAdmin']:
         flash('Unauthorized access.', 'danger')
         return redirect(url_for('student_dashboard'))
 
     complaint = Complaint.query.get_or_404(complaint_id)
-    return render_template('admin/view_complaint.html', complaint=complaint)
+    history = StatusHistory.query.filter_by(complaint_id=complaint.id).order_by(StatusHistory.change_date.desc()).all()
+    return render_template('admin/view_complaint.html', complaint=complaint, history=history)
 
 
-# Route function matched with templates for status updates
 @app.route('/admin/update-status/<int:complaint_id>', methods=['POST'])
-@app.route('/admin/complaint/<int:complaint_id>/update', methods=['POST'])
 @login_required
 def update_complaint_status(complaint_id):
-    if not current_user.is_admin:
+    if not current_user.is_admin and current_user.role not in ['Admin', 'SuperAdmin']:
         flash('Unauthorized access.', 'danger')
         return redirect(url_for('student_dashboard'))
 
     complaint = Complaint.query.get_or_404(complaint_id)
     new_status = request.form.get('status')
+    notes = request.form.get('notes', '').strip()
 
-    if new_status:
+    if new_status and new_status != complaint.status:
+        old_status = complaint.status
         complaint.status = new_status
+
+        # Create status change history entry
+        history_entry = StatusHistory(
+            complaint_id=complaint.id,
+            previous_status=old_status,
+            new_status=new_status,
+            changed_by_id=current_user.id,
+            notes=notes if notes else f"Status changed to {new_status}"
+        )
+        db.session.add(history_entry)
         db.session.commit()
-        flash(f'Status for complaint {complaint.reference_number} updated to "{new_status}".', 'success')
+
+        # Trigger background email dispatch
+        send_status_email(complaint.student.email, complaint.reference_number, new_status, complaint.subject)
+
+        flash(f'Status for {complaint.reference_number} updated to "{new_status}".', 'success')
 
     return redirect(request.referrer or url_for('admin_dashboard'))
-
-
-# Alias endpoint for update_status
-@app.route('/admin/update_status/<int:complaint_id>', methods=['POST'])
-@login_required
-def update_status(complaint_id):
-    return update_complaint_status(complaint_id)
 
 
 # =========================================================================
@@ -294,4 +369,4 @@ def update_status(complaint_id):
 # =========================================================================
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()

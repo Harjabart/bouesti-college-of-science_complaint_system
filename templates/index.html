@@ -22,8 +22,8 @@
 
     <!-- Main Call to Actions -->
     <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 3.5rem;">
-        {% if current_user.is_authenticated %}
-        {% if current_user.is_admin %}
+        {% if session.get('user_id') %}
+        {% if session.get('is_admin') %}
         <a href="{{ url_for('admin_dashboard') }}" class="btn-primary"
             style="background-color: var(--primary-color); color: #ffffff; padding: 0.85rem 2rem; border-radius: 6px; text-decoration: none; font-weight: 700; box-shadow: 0 4px 12px rgba(224, 86, 36, 0.25);">
             Go to Admin Portal →

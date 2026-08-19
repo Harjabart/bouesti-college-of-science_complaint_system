@@ -1,113 +1,88 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}BOUESTI College of Science Portal{% endblock %}</title>
+    <title>{% block title %}BOUESTI Complaint Portal{% endblock %}</title>
+
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Custom Burnt Orange & Dark Theme CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 
-    <!-- Inline script to prevent theme flash on page load -->
-    <script>
-        if (localStorage.getItem('theme') === 'dark') {
-            document.documentElement.setAttribute('data-theme', 'dark');
-        }
-    </script>
+    {% block extra_css %}{% endblock %}
 </head>
 
 <body>
-    <header class="navbar">
-        <a href="{{ url_for('index') }}" class="brand">
-            <!-- Light Theme Logo -->
-            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="BOUESTI Logo" class="logo-light"
-                style="height: 38px; width: auto;" onerror="this.style.display='none'">
 
-            <!-- Dark Theme Logo -->
-            <img src="{{ url_for('static', filename='images/logo-white.png') }}" alt="BOUESTI Logo" class="logo-dark"
-                style="height: 38px; width: auto;" onerror="this.style.display='none'">
-
-            <span>BOUESTI</span> College of Science
+    <!-- Header Navbar -->
+    <nav class="navbar">
+        <a href="{{ url_for('student_dashboard') if current_user.is_authenticated and current_user.role == 'Student' else url_for('admin_dashboard') if current_user.is_authenticated else url_for('login') }}"
+            class="brand">
+            <i class="fas fa-university text-primary fs-4"></i>
+            <span>BOUESTI</span> Portal
         </a>
 
         <ul class="nav-links">
-            <li><a href="{{ url_for('track_complaint') }}">Track Complaint</a></li>
-
-            {% if session.get('user_id') %}
-            {% if session.get('is_admin') %}
-            <li><a href="{{ url_for('admin_dashboard') }}">Admin Portal</a></li>
-            {% else %}
-            <li><a href="{{ url_for('student_dashboard') }}">Dashboard</a></li>
-            <li><a href="{{ url_for('submit_complaint') }}">File Complaint</a></li>
+            {% if current_user.is_authenticated %}
+            {% if current_user.role == 'Student' %}
+            <li><a href="{{ url_for('student_dashboard') }}"><i class="fas fa-tachometer-alt me-1"></i> Dashboard</a>
+            </li>
+            <li><a href="{{ url_for('submit_complaint') }}"><i class="fas fa-plus-circle me-1"></i> New Complaint</a>
+            </li>
+            {% elif current_user.role in ['Admin', 'SuperAdmin', 'Officer'] %}
+            <li><a href="{{ url_for('admin_dashboard') }}"><i class="fas fa-tasks me-1"></i> Admin Panel</a></li>
             {% endif %}
-            <li>
-                <a href="{{ url_for('logout') }}" style="color: var(--primary-color); font-weight: bold;">
-                    Logout {% if session.get('full_name') %}({{ session.get('full_name').split()[0] }}){% endif %}
-                </a>
-            </li>
+            <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt me-1"></i> Logout ({{
+                    current_user.full_name.split()[0] }})</a></li>
             {% else %}
-            <li><a href="{{ url_for('login') }}">Login</a></li>
-            <li>
-                <a href="{{ url_for('register') }}"
-                    style="background-color: var(--primary-color); color: #ffffff; padding: 0.4rem 1rem; border-radius: 4px; font-weight: 600;">
-                    Register
-                </a>
-            </li>
+            <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt me-1"></i> Login</a></li>
+            <li><a href="{{ url_for('register') }}"><i class="fas fa-user-plus me-1"></i> Register</a></li>
             {% endif %}
 
+            <!-- Theme Toggle Button -->
             <li>
-                <button class="theme-toggle-btn" id="themeToggle" aria-label="Toggle Theme">
-                    <span id="themeIcon">🌙</span>
-                    <span id="themeLabel">Dark</span>
+                <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle light/dark theme">
+                    <i class="fas fa-moon" id="theme-icon"></i>
+                    <span id="theme-text">Dark Mode</span>
                 </button>
             </li>
         </ul>
-    </header>
+    </nav>
 
+    <!-- Main Content Area -->
     <main class="main-content">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-        {% for category, message in messages %}
-        <div class="alert alert-{{ category }}">
-            {{ message }}
+
+        <!-- Flash System Alerts Container -->
+        <div id="flash-container">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ 'error' if category == 'danger' else category }}">
+                <i
+                    class="fas {{ 'fa-exclamation-triangle' if category in ['danger', 'error'] else 'fa-check-circle' if category == 'success' else 'fa-info-circle' }} me-2"></i>
+                {{ message }}
+            </div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
         </div>
-        {% endfor %}
-        {% endif %}
-        {% endwith %}
 
         {% block content %}{% endblock %}
     </main>
 
+    <!-- Footer -->
     <footer class="footer">
-        <p>&copy; 2026 BOUESTI - College of Science Complaint Management System. All Rights Reserved.</p>
+        <p class="mb-0">&copy; {{ 2026 }} Bamidele Olumilua University of Education, Science and Technology, Ikere-Ekiti
+            (BOUESTI).</p>
     </footer>
 
-    <script>
-        const themeToggleBtn = document.getElementById('themeToggle');
-        const themeIcon = document.getElementById('themeIcon');
-        const themeLabel = document.getElementById('themeLabel');
+    <!-- External Main JavaScript -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 
-        // Set initial icon and label based on active theme
-        if (document.documentElement.getAttribute('data-theme') === 'dark') {
-            themeIcon.textContent = '☀️';
-            themeLabel.textContent = 'Light';
-        }
-
-        themeToggleBtn.addEventListener('click', () => {
-            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-
-            if (isDark) {
-                document.documentElement.removeAttribute('data-theme');
-                localStorage.setItem('theme', 'light');
-                themeIcon.textContent = '🌙';
-                themeLabel.textContent = 'Dark';
-            } else {
-                document.documentElement.setAttribute('data-theme', 'dark');
-                localStorage.setItem('theme', 'dark');
-                themeIcon.textContent = '☀️';
-                themeLabel.textContent = 'Light';
-            }
-        });
-    </script>
+    {% block extra_js %}{% endblock %}
 </body>
 
 </html>

@@ -1,67 +1,79 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 
-{% block title %}Submit Complaint - BOUESTI College of Science{% endblock %}
+{% block title %}Submit New Complaint - BOUESTI Complaint Portal{% endblock %}
 
 {% block content %}
-<div
-    style="max-width: 650px; margin: 2rem auto; background: var(--card-bg, #1e1e1e); padding: 2rem; border-radius: 10px; border: 1px solid var(--border-color, rgba(255,255,255,0.1)); shadow: 0 4px 20px rgba(0,0,0,0.15);">
-    <h2 style="color: var(--primary-color); margin-bottom: 0.5rem; font-weight: 800;">File a Complaint</h2>
-    <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.8rem;">
-        Fill out the details below. Once submitted, you will receive a unique tracking reference number.
-    </p>
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-7">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-paper-plane me-2"></i>Submit a New Complaint</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form action="{{ url_for('submit_complaint') }}" method="POST" enctype="multipart/form-data">
 
-    <form action="{{ url_for('submit_complaint') }}" method="POST" enctype="multipart/form-data"
-        style="display: flex; flex-direction: column; gap: 1.2rem;">
+                        <!-- Category Selection -->
+                        <div class="mb-3">
+                            <label for="category_id" class="form-label fw-bold">Complaint Category <span
+                                    class="text-danger">*</span></label>
+                            <select name="category_id" id="category_id" class="form-select" required>
+                                <option value="" selected disabled>Select Category...</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}">{{ category.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
 
-        <!-- Category Selection -->
-        <div>
-            <label
-                style="display: block; margin-bottom: 0.4rem; font-weight: 600; font-size: 0.9rem; color: var(--text-color);">Complaint
-                Category</label>
-            <select name="category" required
-                style="width: 100%; padding: 0.8rem; border-radius: 6px; border: 1px solid var(--border-color, #444); background-color: var(--bg-color, #121212); color: var(--text-color); font-size: 0.95rem;">
-                <option value="Academic">Academic (Grades, Exams, Results)</option>
-                <option value="Administrative">Administrative (Registration, Clearance)</option>
-                <option value="Facility/ICT">Facility / ICT Portal Issue</option>
-                <option value="General" selected>General Grievance</option>
-            </select>
+                        <!-- Priority Selection -->
+                        <div class="mb-3">
+                            <label for="priority" class="form-label fw-bold">Priority Level</label>
+                            <select name="priority" id="priority" class="form-select">
+                                <option value="Low">Low</option>
+                                <option value="Normal" selected>Normal</option>
+                                <option value="High">High</option>
+                                <option value="Urgent">Urgent</option>
+                            </select>
+                        </div>
+
+                        <!-- Subject -->
+                        <div class="mb-3">
+                            <label for="subject" class="form-label fw-bold">Subject / Title <span
+                                    class="text-danger">*</span></label>
+                            <input type="text" name="subject" id="subject" class="form-control"
+                                placeholder="Brief summary of your complaint" required>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="mb-3">
+                            <label for="description" class="form-label fw-bold">Detailed Description <span
+                                    class="text-danger">*</span></label>
+                            <textarea name="description" id="description" class="form-control" rows="5"
+                                placeholder="Provide full details regarding the issue..." required></textarea>
+                        </div>
+
+                        <!-- File Upload -->
+                        <div class="mb-4">
+                            <label for="file" class="form-label fw-bold">Attachment (Optional)</label>
+                            <input type="file" name="file" id="file" class="form-control"
+                                accept=".png,.jpg,.jpeg,.pdf,.doc,.docx">
+                            <div class="form-text">Allowed files: PNG, JPG, JPEG, PDF, DOC, DOCX (Max 16MB)</div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="d-flex justify-content-between align-items-center">
+                            <a href="{{ url_for('student_dashboard') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+                            </a>
+                            <button type="submit" class="btn btn-primary px-4">
+                                <i class="fas fa-paper-plane me-1"></i> Submit Complaint
+                            </button>
+                        </div>
+
+                    </form>
+                </div>
+            </div>
         </div>
-
-        <!-- Subject/Title -->
-        <div>
-            <label
-                style="display: block; margin-bottom: 0.4rem; font-weight: 600; font-size: 0.9rem; color: var(--text-color);">Subject
-                / Title</label>
-            <input type="text" name="title" placeholder="e.g. Missing Result for CSC 301" required
-                style="width: 100%; padding: 0.8rem; border-radius: 6px; border: 1px solid var(--border-color, #444); background-color: var(--bg-color, #121212); color: var(--text-color); font-size: 0.95rem;">
-        </div>
-
-        <!-- Detailed Description -->
-        <div>
-            <label
-                style="display: block; margin-bottom: 0.4rem; font-weight: 600; font-size: 0.9rem; color: var(--text-color);">Detailed
-                Description</label>
-            <textarea name="description" rows="5" placeholder="Provide full context, course codes, dates, or details..."
-                required
-                style="width: 100%; padding: 0.8rem; border-radius: 6px; border: 1px solid var(--border-color, #444); background-color: var(--bg-color, #121212); color: var(--text-color); font-size: 0.95rem; resize: vertical;"></textarea>
-        </div>
-
-        <!-- Evidence Attachment Upload -->
-        <div>
-            <label
-                style="display: block; margin-bottom: 0.4rem; font-weight: 600; font-size: 0.9rem; color: var(--text-color);">Attach
-                Evidence (Optional)</label>
-            <input type="file" name="attachment" accept=".pdf,.png,.jpg,.jpeg"
-                style="width: 100%; padding: 0.6rem; border-radius: 6px; border: 1px dashed var(--primary-color); background-color: rgba(224, 86, 36, 0.05); color: var(--text-color); font-size: 0.85rem;">
-            <small style="color: var(--text-muted); display: block; margin-top: 0.3rem;">Accepted formats: PDF, PNG, JPG
-                (Max: 5MB)</small>
-        </div>
-
-        <!-- Submit Action -->
-        <button type="submit"
-            style="background-color: var(--primary-color); color: #ffffff; padding: 0.85rem; border: none; border-radius: 6px; font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 0.5rem; transition: opacity 0.2s;">
-            Submit Complaint
-        </button>
-    </form>
+    </div>
 </div>
 {% endblock %}

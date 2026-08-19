@@ -5,15 +5,16 @@
 {% block content %}
 <div style="max-width: 750px; margin: 2rem auto; text-align: center;">
     <h2 style="color: var(--primary-color); margin-bottom: 0.5rem; font-weight: 800;">Track Complaint Progress</h2>
-    <p style="color: var(--text-muted); margin-bottom: 2rem;">Enter your unique Reference ID below to check real-time
-        resolution status.</p>
+    <p style="color: var(--text-muted); margin-bottom: 2rem;">
+        Enter your unique Reference ID below to check real-time resolution status.
+    </p>
 
     <!-- Search Form -->
     <form action="{{ url_for('track_complaint') }}" method="POST"
         style="display: flex; gap: 0.5rem; margin-bottom: 2.5rem;">
         <input type="text" name="reference_number" value="{{ searched_ref if searched_ref else '' }}"
             placeholder="e.g., BOUESTI-2026-X8Y2" required
-            style="flex: 1; padding: 0.85rem 1rem; border: 1px solid var(--border-color, #444); border-radius: 6px; font-size: 1rem; background-color: var(--card-bg, #1e1e1e); color: var(--text-color);">
+            style="flex: 1; box-sizing: border-box; padding: 0.85rem 1rem; border: 1px solid var(--border-color, #444); border-radius: 6px; font-size: 1rem; background-color: var(--card-bg, #1e1e1e); color: var(--text-color);">
         <button type="submit"
             style="padding: 0.85rem 1.8rem; background-color: var(--primary-color); color: #ffffff; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; transition: opacity 0.2s;">
             Track Status
@@ -21,7 +22,8 @@
     </form>
 
     {% if complaint %}
-    {% set status_lower = complaint.status.lower() %}
+    {% set status_str = complaint.status|string %}
+    {% set status_lower = status_str.lower() if complaint.status else 'pending' %}
 
     <!-- Complaint Details Card -->
     <div
@@ -48,7 +50,7 @@
                 {% elif 'review' in status_lower or 'processing' in status_lower %} background-color: rgba(13, 110, 253, 0.2); color: #0d6efd; border: 1px solid #0d6efd;
                 {% elif 'resolved' in status_lower or 'completed' in status_lower %} background-color: rgba(25, 135, 84, 0.2); color: #198754; border: 1px solid #198754;
                 {% else %} background-color: rgba(108, 117, 125, 0.2); color: #6c757d; border: 1px solid #6c757d; {% endif %}">
-                ● {{ complaint.status }}
+                ● {{ complaint.status if complaint.status else 'Pending' }}
             </span>
         </div>
 
@@ -61,7 +63,8 @@
                 <div style="text-align: center; flex: 1; position: relative; z-index: 1;">
                     <div
                         style="width: 28px; height: 28px; border-radius: 50%; background-color: var(--primary-color); color: #fff; margin: 0 auto 0.4rem auto; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold;">
-                        ✓</div>
+                        ✓
+                    </div>
                     <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-color);">Submitted</span>
                 </div>
 
@@ -73,8 +76,9 @@
                         {% if 'review' in status_lower or 'resolved' in status_lower %}✓{% else %}2{% endif %}
                     </div>
                     <span
-                        style="font-size: 0.75rem; font-weight: 600; color: {% if 'review' in status_lower or 'resolved' in status_lower %}var(--text-color){% else %}var(--text-muted){% endif %};">In
-                        Review</span>
+                        style="font-size: 0.75rem; font-weight: 600; color: {% if 'review' in status_lower or 'resolved' in status_lower %}var(--text-color){% else %}var(--text-muted){% endif %};">
+                        In Review
+                    </span>
                 </div>
 
                 <!-- Stage 3: Resolved -->
@@ -85,29 +89,35 @@
                         {% if 'resolved' in status_lower %}✓{% else %}3{% endif %}
                     </div>
                     <span
-                        style="font-size: 0.75rem; font-weight: 600; color: {% if 'resolved' in status_lower %}#198754{% else %}var(--text-muted){% endif %};">Resolved</span>
+                        style="font-size: 0.75rem; font-weight: 600; color: {% if 'resolved' in status_lower %}#198754{% else %}var(--text-muted){% endif %};">
+                        Resolved
+                    </span>
                 </div>
             </div>
         </div>
 
         <!-- Meta Details -->
-        <h4 style="margin: 0 0 0.4rem 0; font-size: 1.15rem; font-weight: 700; color: var(--text-color);">{{
-            complaint.title }}</h4>
+        <h4 style="margin: 0 0 0.4rem 0; font-size: 1.15rem; font-weight: 700; color: var(--text-color);">
+            {{ complaint.title }}
+        </h4>
         <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.2rem;">
-            Submitted by: <strong>{{ complaint.user.full_name }}</strong>
-            ({{ complaint.user.department if complaint.user.department else 'Science Student' }}) |
-            {{ complaint.created_at.strftime('%b %d, %Y at %I:%M %p') }}
+            Submitted by: <strong>{{ complaint.user.full_name if (complaint.user and complaint.user.full_name) else
+                'Anonymous Student' }}</strong>
+            ({{ complaint.user.department if (complaint.user and complaint.user.department) else 'Science Student' }}) |
+            {{ complaint.created_at.strftime('%b %d, %Y at %I:%M %p') if complaint.created_at else '' }}
         </p>
 
         <!-- Description Box -->
         <div
             style="padding: 1rem; background-color: var(--bg-color, #121212); border-radius: 6px; border: 1px solid var(--border-color, rgba(255,255,255,0.05)); margin-bottom: 1rem;">
             <strong
-                style="display: block; margin-bottom: 0.4rem; font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase;">Complaint
-                Details:</strong>
+                style="display: block; margin-bottom: 0.4rem; font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase;">
+                Complaint Details:
+            </strong>
             <p
                 style="margin: 0; font-size: 0.95rem; line-height: 1.6; color: var(--text-color); white-space: pre-line;">
-                {{ complaint.description }}</p>
+                {{ complaint.description }}
+            </p>
         </div>
 
         <!-- Attachment Link -->

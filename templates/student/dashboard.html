@@ -1,127 +1,79 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 
 {% block title %}Student Dashboard - BOUESTI Complaint Portal{% endblock %}
 
 {% block content %}
-<div
-    style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-    <div>
-        <h2 style="color: var(--primary-color); font-weight: 800; margin-bottom: 0.2rem;">Student Dashboard</h2>
-        <p style="color: var(--text-muted); font-size: 0.95rem;">Manage, track, and monitor your submitted grievances in
-            real time.</p>
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h4 mb-1">Welcome, {{ current_user.full_name }}</h2>
+            <p class="text-muted mb-0">Matric No: <strong>{{ current_user.matric_no or 'N/A' }}</strong></p>
+        </div>
+        <a href="{{ url_for('submit_complaint') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i> New Complaint
+        </a>
     </div>
-    <a href="{{ url_for('submit_complaint') }}"
-        style="background-color: var(--primary-color); color: #ffffff; padding: 0.75rem 1.5rem; border-radius: 6px; text-decoration: none; font-weight: 700; box-shadow: 0 4px 12px rgba(224, 86, 36, 0.25); transition: transform 0.2s;">
-        + Submit New Complaint
-    </a>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3">
+            <h5 class="card-title mb-0 text-dark"><i class="fas fa-list-alt me-2"></i>My Submitted Complaints</h5>
+        </div>
+        <div class="card-body p-0">
+            {% if complaints %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Ref Number</th>
+                            <th>Category</th>
+                            <th>Subject</th>
+                            <th>Priority</th>
+                            <th>Submitted Date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for complaint in complaints %}
+                        <tr>
+                            <td>
+                                <strong class="text-primary">{{ complaint.reference_number }}</strong>
+                            </td>
+                            <td>{{ complaint.category.name }}</td>
+                            <td>{{ complaint.subject }}</td>
+                            <td>
+                                <span
+                                    class="badge {% if complaint.priority == 'Urgent' %}bg-danger{% elif complaint.priority == 'High' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                    {{ complaint.priority }}
+                                </span>
+                            </td>
+                            <td>{{ complaint.submission_date.strftime('%b %d, %Y') }}</td>
+                            <td>
+                                {% if complaint.status == 'Resolved' %}
+                                <span class="badge bg-success">Resolved</span>
+                                {% elif complaint.status == 'Rejected' %}
+                                <span class="badge bg-danger">Rejected</span>
+                                {% elif complaint.status == 'Under Review' %}
+                                <span class="badge bg-info text-dark">Under Review</span>
+                                {% elif complaint.status == 'Referred' %}
+                                <span class="badge bg-warning text-dark">Referred</span>
+                                {% else %}
+                                <span class="badge bg-primary">{{ complaint.status }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="p-4 text-center text-muted">
+                <i class="fas fa-folder-open fa-3x mb-3 text-secondary"></i>
+                <p class="mb-2">You haven't submitted any complaints yet.</p>
+                <a href="{{ url_for('submit_complaint') }}" class="btn btn-sm btn-outline-primary">Submit Your First
+                    Complaint</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
 </div>
-
-{% if complaints %}
-<div
-    style="overflow-x: auto; background-color: var(--card-bg, #1e1e1e); border-radius: 8px; border: 1px solid var(--border-color, rgba(255,255,255,0.08)); box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
-    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.95rem;">
-        <thead>
-            <tr
-                style="border-bottom: 2px solid var(--border-color, rgba(255,255,255,0.1)); background-color: rgba(0,0,0,0.2);">
-                <th style="padding: 1rem; color: var(--text-color);">Ref ID</th>
-                <th style="padding: 1rem; color: var(--text-color);">Category</th>
-                <th style="padding: 1rem; color: var(--text-color);">Subject</th>
-                <th style="padding: 1rem; color: var(--text-color);">Evidence</th>
-                <th style="padding: 1rem; color: var(--text-color);">Status</th>
-                <th style="padding: 1rem; color: var(--text-color);">Date</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for c in complaints %}
-            <tr style="border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.05));">
-                <!-- Reference Number -->
-                <td
-                    style="padding: 1rem; font-weight: 700; color: var(--primary-color); font-family: monospace; font-size: 0.9rem;">
-                    {{ c.reference_number if c.reference_number else 'N/A' }}
-                </td>
-
-                <!-- Category Badge -->
-                <td style="padding: 1rem;">
-                    <span
-                        style="background-color: rgba(255,255,255,0.06); padding: 0.25rem 0.6rem; border-radius: 4px; font-size: 0.8rem; color: var(--text-color);">
-                        {{ c.category if c.category else 'General' }}
-                    </span>
-                </td>
-
-                <!-- Title / Subject -->
-                <td style="padding: 1rem; color: var(--text-color); font-weight: 600;">
-                    {{ c.title }}
-                </td>
-
-                <!-- Safe Attachment Check -->
-                <td style="padding: 1rem;">
-                    {% if c.filename is defined and c.filename %}
-                    <a href="{{ url_for('uploaded_file', filename=c.filename) }}" target="_blank"
-                        style="color: var(--primary-color); text-decoration: none; font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.3rem;">
-                        📎 View File
-                    </a>
-                    {% else %}
-                    <span style="color: var(--text-muted); font-size: 0.85rem;">None</span>
-                    {% endif %}
-                </td>
-
-                <!-- Dynamic Color Status Badge -->
-                <td style="padding: 1rem;">
-                    {% if c.status == 'Resolved' %}
-                    <span
-                        style="padding: 0.3rem 0.7rem; border-radius: 20px; font-size: 0.8rem; font-weight: 700; background-color: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid rgba(46, 204, 113, 0.3);">
-                        ● Resolved
-                    </span>
-                    {% elif c.status == 'In Progress' or c.status == 'Under Review' %}
-                    <span
-                        style="padding: 0.3rem 0.7rem; border-radius: 20px; font-size: 0.8rem; font-weight: 700; background-color: rgba(241, 196, 15, 0.15); color: #f1c40f; border: 1px solid rgba(241, 196, 15, 0.3);">
-                        ● {{ c.status }}
-                    </span>
-                    {% elif c.status == 'Rejected' %}
-                    <span
-                        style="padding: 0.3rem 0.7rem; border-radius: 20px; font-size: 0.8rem; font-weight: 700; background-color: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid rgba(231, 76, 60, 0.3);">
-                        ● Rejected
-                    </span>
-                    {% else %}
-                    <span
-                        style="padding: 0.3rem 0.7rem; border-radius: 20px; font-size: 0.8rem; font-weight: 700; background-color: rgba(224, 86, 36, 0.15); color: var(--primary-color); border: 1px solid rgba(224, 86, 36, 0.3);">
-                        ● Pending
-                    </span>
-                    {% endif %}
-                </td>
-
-                <!-- Safe Date Formatter -->
-                <td style="padding: 1rem; color: var(--text-muted); font-size: 0.85rem;">
-                    {% if c.created_at is defined and c.created_at %}
-                    {% if c.created_at.strftime is defined %}
-                    {{ c.created_at.strftime('%Y-%m-%d') }}
-                    {% else %}
-                    {{ c.created_at|string }}
-                    {% endif %}
-                    {% else %}
-                    N/A
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-
-{% else %}
-<!-- Empty State Component -->
-<div
-    style="text-align: center; padding: 3.5rem 1.5rem; background-color: var(--card-bg, #1e1e1e); border-radius: 8px; border: 1px solid var(--border-color, rgba(255,255,255,0.08));">
-    <div style="font-size: 2.5rem; margin-bottom: 0.8rem;">📋</div>
-    <h3 style="color: var(--text-color); margin-bottom: 0.5rem; font-weight: 700;">No complaints submitted yet</h3>
-    <p
-        style="margin-bottom: 1.8rem; color: var(--text-muted); max-width: 450px; margin-left: auto; margin-right: auto; font-size: 0.95rem;">
-        Have an academic or administrative issue? Submit your first complaint and keep track of its resolution live.
-    </p>
-    <a href="{{ url_for('submit_complaint') }}"
-        style="background-color: var(--primary-color); color: #ffffff; padding: 0.75rem 1.8rem; border-radius: 6px; text-decoration: none; font-weight: 700; box-shadow: 0 4px 12px rgba(224, 86, 36, 0.25);">
-        File a Complaint
-    </a>
-</div>
-{% endif %}
 {% endblock %}

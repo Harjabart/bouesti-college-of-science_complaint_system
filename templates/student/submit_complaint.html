@@ -13,28 +13,21 @@
     <form action="{{ url_for('submit_complaint') }}" method="POST">
         <div style="margin-bottom: 1rem;">
             <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Category</label>
-            <select name="category_id" required
+            <select name="category" required
                 style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-color); color: var(--text-color);">
                 <option value="" disabled selected>-- Select Complaint Category --</option>
-                {% for cat in categories %}
-                <option value="{{ cat.id }}">{{ cat.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div style="margin-bottom: 1rem;">
-            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Priority Level</label>
-            <select name="priority"
-                style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-color); color: var(--text-color);">
-                <option value="Normal" selected>Normal</option>
-                <option value="High">High</option>
-                <option value="Urgent">Urgent</option>
+                <option value="Academic">Academic (Missing Scores, Results)</option>
+                <option value="Administrative">Administrative & Admission</option>
+                <option value="Bursary">Bursary & Payment Issues</option>
+                <option value="Hostel">Hostel & Accommodation</option>
+                <option value="ICT">ICT & Portal Technical Support</option>
+                <option value="General">General Inquiries</option>
             </select>
         </div>
 
         <div style="margin-bottom: 1rem;">
             <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Subject / Title</label>
-            <input type="text" name="subject" placeholder="e.g., Missing Score in CSC 301" required
+            <input type="text" name="title" placeholder="e.g., Missing Score in CSC 301" required
                 style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-color); color: var(--text-color);">
         </div>
 
@@ -50,7 +43,7 @@
                 style="flex: 1; padding: 0.75rem; background-color: var(--primary-color); color: #fff; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">
                 Submit Complaint
             </button>
-            <a href="{{ url_for('dashboard') }}"
+            <a href="{{ url_for('student_dashboard') }}"
                 style="padding: 0.75rem 1.5rem; border: 1px solid var(--border-color); color: var(--text-color); text-decoration: none; border-radius: 4px; font-weight: 500; text-align: center;">
                 Cancel
             </a>

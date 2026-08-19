@@ -30,27 +30,19 @@
             </span>
         </div>
 
-        <p style="margin-bottom: 0.5rem; font-weight: 500; font-size: 1.1rem;">{{ complaint.subject }}</p>
-        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">
-            Category: <strong>{{ complaint.category.name }}</strong> | Submitted on {{
-            complaint.submission_date.strftime('%b %d, %Y') }}
+        <p style="margin-bottom: 0.5rem; font-weight: 500; font-size: 1.1rem;">{{ complaint.title }}</p>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem;">
+            Submitted by: <strong>{{ complaint.user.full_name }}</strong> ({{ complaint.user.department if
+            complaint.user.department else 'Student' }}) |
+            Submitted on {{ complaint.created_at.strftime('%b %d, %Y') }}
         </p>
 
-        <h4 style="margin-top: 1.5rem; margin-bottom: 1rem; color: var(--secondary-color);">Status Timeline & Audit
-            History</h4>
-        <ul style="list-style: none; padding: 0; margin: 0;">
-            {% for h in complaint.status_history %}
-            <li style="padding: 0.75rem 0; border-bottom: 1px solid var(--border-color); font-size: 0.9rem;">
-                <strong style="color: var(--primary-color);">{{ h.new_status }}</strong>
-                <span style="color: var(--text-muted);">&bull; {{ h.change_date.strftime('%b %d, %Y at %I:%M %p')
-                    }}</span>
-                {% if h.notes %}
-                <p style="margin-top: 0.3rem; color: var(--text-muted); font-style: italic; margin-bottom: 0;">Remarks:
-                    {{ h.notes }}</p>
-                {% endif %}
-            </li>
-            {% endfor %}
-        </ul>
+        <div
+            style="margin-top: 1rem; padding: 1rem; background-color: var(--bg-color); border-radius: 4px; border: 1px solid var(--border-color);">
+            <strong style="display: block; margin-bottom: 0.5rem; color: var(--secondary-color);">Complaint
+                Description:</strong>
+            <p style="margin: 0; font-size: 0.95rem; color: var(--text-color);">{{ complaint.description }}</p>
+        </div>
     </div>
     {% endif %}
 </div>

@@ -1,4 +1,5 @@
 import os
+import secrets
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_mail import Mail, Message
@@ -38,12 +39,22 @@ class User(db.Model):
 
 class Complaint(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    reference_number = db.Column(db.String(50), unique=True, nullable=False)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=False)
     status = db.Column(db.String(50), default='Pending')
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref=db.backref('complaints', lazy=True))
+
+    # Safe alias properties for template compatibility
+    @property
+    def subject(self):
+        return self.title
+
+    @property
+    def submission_date(self):
+        return self.created_at
 
 # Create tables inside app context safely
 with app.app_context():
@@ -52,16 +63,33 @@ with app.app_context():
     except Exception as e:
         print(f"Database setup note: {e}")
 
+# --- Helper Functions ---
+def generate_ref_code():
+    return f"BOUESTI-2026-{secrets.token_hex(2).upper()}"
+
 # --- Routes ---
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
+@app.route('/track', methods=['GET', 'POST'])
+def track_complaint():
+    complaint = None
+    searched_ref = ""
+
+    if request.method == 'POST':
+        searched_ref = request.form.get('reference_number', '').strip().upper()
+        if searched_ref:
+            complaint = Complaint.query.filter_by(reference_number=searched_ref).first()
+            if not complaint:
+                flash(f"No complaint found with Reference ID: {searched_ref}", "warning")
+
+    return render_template('track.html', complaint=complaint, searched_ref=searched_ref)
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        # Accept input from form fields named 'email', 'identifier', or 'username'
         identifier = (
             request.form.get('email') or 
             request.form.get('identifier') or 
@@ -70,7 +98,6 @@ def login():
         
         password = request.form.get('password')
 
-        # Allow login via Email OR Matriculation Number
         user = User.query.filter(
             (User.email == identifier) | (User.matric_no == identifier)
         ).first()
@@ -97,7 +124,6 @@ def register():
         department = request.form.get('department', '').strip()
         password = request.form.get('password')
 
-        # Flexible student email validation
         if not (email.endswith('bouesti.edu.ng') or '@bouesti.edu.ng' in email):
             flash('You cannot create an account because you are not recognized as a BOUESTI student.', 'danger')
             return redirect(url_for('register'))
@@ -141,8 +167,10 @@ def submit_complaint():
     if request.method == 'POST':
         title = request.form.get('title')
         description = request.form.get('description')
+        ref_number = generate_ref_code()
 
         new_complaint = Complaint(
+            reference_number=ref_number,
             title=title,
             description=description,
             user_id=session['user_id']
@@ -150,7 +178,7 @@ def submit_complaint():
         db.session.add(new_complaint)
         db.session.commit()
 
-        flash('Complaint submitted successfully!', 'success')
+        flash(f'Complaint submitted! Tracking Reference: {ref_number}', 'success')
         return redirect(url_for('student_dashboard'))
 
     return render_template('submit_complaint.html')
@@ -173,13 +201,12 @@ def update_status(complaint_id):
     complaint.status = new_status
     db.session.commit()
 
-    # Send status notification email
     try:
         msg = Message(
-            f"Complaint Status Update: {complaint.title}",
+            f"Complaint Status Update: {complaint.reference_number}",
             recipients=[complaint.user.email]
         )
-        msg.body = f"Hello {complaint.user.full_name},\n\nYour complaint titled '{complaint.title}' status has been updated to: {new_status}.\n\nBest regards,\nBOUESTI College of Science"
+        msg.body = f"Hello {complaint.user.full_name},\n\nYour complaint [{complaint.reference_number}] '{complaint.title}' status has been updated to: {new_status}.\n\nBest regards,\nBOUESTI College of Science"
         mail.send(msg)
     except Exception as e:
         flash(f'Status updated, but email sending failed: {str(e)}', 'warning')

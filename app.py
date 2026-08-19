@@ -1,9 +1,11 @@
 import os
+import time
 import secrets
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_mail import Mail, Message
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 
@@ -15,6 +17,14 @@ if db_url.startswith("postgres://"):
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default_secret_key')
+
+# Uploads Configuration
+UPLOAD_FOLDER = os.path.join(app.root_path, 'static/uploads')
+ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5 MB Limit
+
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Flask-Mail Config
 app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
@@ -40,14 +50,16 @@ class User(db.Model):
 class Complaint(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     reference_number = db.Column(db.String(50), unique=True, nullable=False)
+    category = db.Column(db.String(100), nullable=True, default='General')
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=False)
+    attachment = db.Column(db.String(255), nullable=True)
     status = db.Column(db.String(50), default='Pending')
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref=db.backref('complaints', lazy=True))
 
-    # Safe alias properties for template compatibility
+    # Safe alias properties for Jinja2 template compatibility
     @property
     def subject(self):
         return self.title
@@ -59,13 +71,13 @@ class Complaint(db.Model):
 # --- Startup Database Schema Sync ---
 with app.app_context():
     try:
-        # Create missing tables
         db.create_all()
-        
-        # Patch missing columns on PostgreSQL automatically on cold boot
+        # Auto-patch new columns on PostgreSQL instance
         if 'postgresql' in db_url:
             db.session.execute(db.text("ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS department VARCHAR(100);"))
             db.session.execute(db.text("ALTER TABLE complaint ADD COLUMN IF NOT EXISTS reference_number VARCHAR(50);"))
+            db.session.execute(db.text("ALTER TABLE complaint ADD COLUMN IF NOT EXISTS category VARCHAR(100);"))
+            db.session.execute(db.text("ALTER TABLE complaint ADD COLUMN IF NOT EXISTS attachment VARCHAR(255);"))
             db.session.commit()
     except Exception as e:
         db.session.rollback()
@@ -74,6 +86,9 @@ with app.app_context():
 # --- Helper Functions ---
 def generate_ref_code():
     return f"BOUESTI-2026-{secrets.token_hex(2).upper()}"
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # --- Routes ---
 
@@ -164,7 +179,7 @@ def student_dashboard():
     if 'user_id' not in session or session.get('is_admin'):
         return redirect(url_for('login'))
     
-    complaints = Complaint.query.filter_by(user_id=session['user_id']).all()
+    complaints = Complaint.query.filter_by(user_id=session['user_id']).order_by(Complaint.created_at.desc()).all()
     return render_template('student_dashboard.html', complaints=complaints)
 
 @app.route('/submit_complaint', methods=['GET', 'POST'])
@@ -173,14 +188,26 @@ def submit_complaint():
         return redirect(url_for('login'))
 
     if request.method == 'POST':
+        category = request.form.get('category', 'General')
         title = request.form.get('title')
         description = request.form.get('description')
         ref_number = generate_ref_code()
 
+        filename = None
+        if 'attachment' in request.files:
+            file = request.files['attachment']
+            if file and file.filename != '' and allowed_file(file.filename):
+                ext = file.filename.rsplit('.', 1)[1].lower()
+                safe_name = secure_filename(file.filename.rsplit('.', 1)[0])
+                filename = f"{ref_number}_{int(time.time())}_{safe_name}.{ext}"
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
         new_complaint = Complaint(
             reference_number=ref_number,
+            category=category,
             title=title,
             description=description,
+            attachment=filename,
             user_id=session['user_id']
         )
         db.session.add(new_complaint)
@@ -196,7 +223,7 @@ def admin_dashboard():
     if 'user_id' not in session or not session.get('is_admin'):
         return redirect(url_for('login'))
 
-    complaints = Complaint.query.all()
+    complaints = Complaint.query.order_by(Complaint.created_at.desc()).all()
     return render_template('admin_dashboard.html', complaints=complaints)
 
 @app.route('/admin/update_status/<int:complaint_id>', methods=['POST'])
@@ -217,7 +244,7 @@ def update_status(complaint_id):
         msg.body = f"Hello {complaint.user.full_name},\n\nYour complaint [{complaint.reference_number}] '{complaint.title}' status has been updated to: {new_status}.\n\nBest regards,\nBOUESTI College of Science"
         mail.send(msg)
     except Exception as e:
-        flash(f'Status updated, but email sending failed: {str(e)}', 'warning')
+        flash(f'Status updated, but email notification failed: {str(e)}', 'warning')
 
     flash('Complaint status updated successfully!', 'success')
     return redirect(url_for('admin_dashboard'))
@@ -232,14 +259,14 @@ def logout():
 def fix_db_schema():
     try:
         with app.app_context():
-            # 1. Direct Column Alterations for existing production tables
             db.session.execute(db.text("ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS department VARCHAR(100);"))
             db.session.execute(db.text("ALTER TABLE complaint ADD COLUMN IF NOT EXISTS reference_number VARCHAR(50);"))
+            db.session.execute(db.text("ALTER TABLE complaint ADD COLUMN IF NOT EXISTS category VARCHAR(100);"))
+            db.session.execute(db.text("ALTER TABLE complaint ADD COLUMN IF NOT EXISTS attachment VARCHAR(255);"))
             db.create_all()
             db.session.commit()
         return "Database schema patched successfully! Return to /login and try logging in."
     except Exception as e:
-        # 2. Hard Reset fallback if schema corruption prevents altering
         try:
             db.session.rollback()
             db.drop_all()

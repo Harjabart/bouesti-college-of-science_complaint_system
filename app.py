@@ -181,15 +181,21 @@ def ensure_db_initialized():
         return
 
     try:
+        # Create missing tables
         db.create_all()
 
-        # Check if users table has matric_no column; if not, drop & recreate tables cleanly
-        with db.engine.connect() as conn:
-            from sqlalchemy import inspect
-            inspector = inspect(db.engine)
+        # Check if users table needs schema sync
+        from sqlalchemy import inspect, text
+        inspector = inspect(db.engine)
+        if 'users' in inspector.get_table_names():
             columns = [c['name'] for c in inspector.get_columns('users')]
             if 'matric_no' not in columns:
-                db.drop_all()
+                # Force CASCADE drop on PostgreSQL to clear dependent tables safely
+                with db.engine.begin() as conn:
+                    conn.execute(text("DROP TABLE IF EXISTS status_history CASCADE;"))
+                    conn.execute(text("DROP TABLE IF EXISTS complaints CASCADE;"))
+                    conn.execute(text("DROP TABLE IF EXISTS categories CASCADE;"))
+                    conn.execute(text("DROP TABLE IF EXISTS users CASCADE;"))
                 db.create_all()
 
         # Seed Default Complaint Categories
@@ -227,7 +233,7 @@ def ensure_db_initialized():
     except Exception as e:
         db.session.rollback()
         print(f"Database Initialization Note: {e}")
-
+        
 # =========================================================================
 # 5. ENTRY POINT
 # =========================================================================

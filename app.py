@@ -1,15 +1,23 @@
 import os
+import uuid
 from datetime import datetime
-from flask import Flask, render_template, redirect, url_for, flash, request
+from flask import Flask, render_template, redirect, url_for, flash, request, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 
 # =========================================================================
 # 1. APPLICATION & DATABASE CONFIGURATION
 # =========================================================================
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'bouesti-secret-key-2026-production')
+
+# File Upload Configuration
+UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB limit
 
 # Fix PostgreSQL URI scheme for SQLAlchemy 2.0+ on Render
 db_uri = os.environ.get("DATABASE_URL", "sqlite:///bouesti_portal.db")
@@ -62,9 +70,10 @@ class Complaint(db.Model):
     reference_number = db.Column(db.String(20), unique=True, nullable=False)
     subject = db.Column(db.String(200), nullable=False)
     details = db.Column(db.Text, nullable=False)
-    priority = db.Column(db.String(20), nullable=False, default='Normal') # Urgent, High, Normal
-    status = db.Column(db.String(30), nullable=False, default='Submitted') # Submitted, Under Review, Resolved, Rejected
+    priority = db.Column(db.String(20), nullable=False, default='Normal')
+    status = db.Column(db.String(30), nullable=False, default='Submitted')
     submission_date = db.Column(db.DateTime, default=datetime.utcnow)
+    attachment = db.Column(db.String(255), nullable=True)
     
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
@@ -78,7 +87,7 @@ def index():
         if current_user.role == 'Admin':
             return redirect(url_for('admin_dashboard'))
         return redirect(url_for('student_dashboard'))
-    return redirect(url_for('login'))
+    return render_template('index.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -173,6 +182,85 @@ def admin_dashboard():
     return render_template('admin/dashboard.html', complaints=complaints)
 
 # =========================================================================
+# ALL PREVIOUSLY MISSING ROUTES (FIXES URL_FOR BUILDERRORS)
+# =========================================================================
+
+@app.route('/complaint/submit', methods=['GET', 'POST'])
+@login_required
+def submit_complaint():
+    categories = Category.query.all()
+    if request.method == 'POST':
+        category_id = request.form.get('category_id')
+        subject = str(request.form.get('subject', '')).strip()
+        details = str(request.form.get('details', '')).strip()
+        priority = request.form.get('priority', 'Normal')
+        
+        file = request.files.get('attachment')
+        filename = None
+        if file and file.filename != '':
+            ext = os.path.splitext(file.filename)[1]
+            filename = f"{uuid.uuid4().hex}{ext}"
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            
+        ref_no = f"CMP-{uuid.uuid4().hex[:8].upper()}"
+        
+        new_complaint = Complaint(
+            reference_number=ref_no,
+            subject=subject,
+            details=details,
+            priority=priority,
+            category_id=category_id,
+            user_id=current_user.id,
+            attachment=filename
+        )
+        db.session.add(new_complaint)
+        db.session.commit()
+        
+        flash(f'Complaint submitted successfully! Your Ref ID is {ref_no}', 'success')
+        return redirect(url_for('student_dashboard'))
+        
+    return render_template('student/submit_complaint.html', categories=categories)
+
+@app.route('/track', methods=['GET', 'POST'])
+def track_complaint():
+    complaint = None
+    if request.method == 'POST':
+        ref_no = str(request.form.get('reference_number', '')).strip().upper()
+        complaint = Complaint.query.filter_by(reference_number=ref_no).first()
+        if not complaint:
+            flash('No complaint found with that Reference Number.', 'danger')
+    return render_template('track.html', complaint=complaint)
+
+@app.route('/admin/complaint/<int:complaint_id>')
+@login_required
+def view_complaint(complaint_id):
+    if current_user.role != 'Admin':
+        return redirect(url_for('student_dashboard'))
+    complaint = db.session.get(Complaint, complaint_id)
+    if not complaint:
+        flash('Complaint not found.', 'danger')
+        return redirect(url_for('admin_dashboard'))
+    return render_template('admin/view_complaint.html', complaint=complaint)
+
+@app.route('/admin/complaint/<int:complaint_id>/status', methods=['POST'])
+@login_required
+def update_complaint_status(complaint_id):
+    if current_user.role != 'Admin':
+        return redirect(url_for('student_dashboard'))
+    complaint = db.session.get(Complaint, complaint_id)
+    if complaint:
+        new_status = request.form.get('status')
+        if new_status:
+            complaint.status = new_status
+            db.session.commit()
+            flash('Complaint status updated successfully.', 'success')
+    return redirect(url_for('view_complaint', complaint_id=complaint_id))
+
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+# =========================================================================
 # 4. SAFE BOOTSTRAPPER WITH CASCADE TABLE RE-SYNC
 # =========================================================================
 @app.before_request
@@ -181,16 +269,13 @@ def ensure_db_initialized():
         return
 
     try:
-        # Create missing tables
         db.create_all()
 
-        # Check if users table needs schema sync
         from sqlalchemy import inspect, text
         inspector = inspect(db.engine)
         if 'users' in inspector.get_table_names():
             columns = [c['name'] for c in inspector.get_columns('users')]
             if 'matric_no' not in columns:
-                # Force CASCADE drop on PostgreSQL to clear dependent tables safely
                 with db.engine.begin() as conn:
                     conn.execute(text("DROP TABLE IF EXISTS status_history CASCADE;"))
                     conn.execute(text("DROP TABLE IF EXISTS complaints CASCADE;"))
@@ -198,7 +283,6 @@ def ensure_db_initialized():
                     conn.execute(text("DROP TABLE IF EXISTS users CASCADE;"))
                 db.create_all()
 
-        # Seed Default Complaint Categories
         default_categories = [
             "Academic Affairs",
             "Bursary & Payments",
@@ -215,7 +299,6 @@ def ensure_db_initialized():
                 db.session.add(Category(name=cat_name))
         db.session.commit()
 
-        # Seed Default Admin Account
         admin_email = "admin@bouesti.edu.ng"
         if not User.query.filter_by(email=admin_email).first():
             hashed_password = generate_password_hash("Admin@BOUESTI2026!", method="pbkdf2:sha256")

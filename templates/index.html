@@ -13,23 +13,30 @@
     </p>
 
     <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
-        {% if current_user.is_authenticated %}
+        {% if session.get('user_id') %}
+        {% if session.get('is_admin') %}
+        <a href="{{ url_for('admin_dashboard') }}"
+            style="background-color: var(--primary-color); color: #fff; padding: 0.8rem 1.8rem; border-radius: 5px; text-decoration: none; font-weight: bold;">
+            Go to Admin Portal
+        </a>
+        {% else %}
         <a href="{{ url_for('submit_complaint') }}"
             style="background-color: var(--primary-color); color: #fff; padding: 0.8rem 1.8rem; border-radius: 5px; text-decoration: none; font-weight: bold;">
             Submit a Complaint
         </a>
-        <a href="{{ url_for('track_complaint') }}"
+        <a href="{{ url_for('student_dashboard') }}"
             style="border: 2px solid var(--secondary-color); color: var(--text-color); padding: 0.8rem 1.8rem; border-radius: 5px; text-decoration: none; font-weight: bold;">
             Track Status
         </a>
+        {% endif %}
         {% else %}
         <a href="{{ url_for('login') }}"
             style="background-color: var(--primary-color); color: #fff; padding: 0.8rem 1.8rem; border-radius: 5px; text-decoration: none; font-weight: bold;">
-            Submit a Complaint
+            Login to Submit Complaint
         </a>
-        <a href="{{ url_for('track_complaint') }}"
+        <a href="{{ url_for('register') }}"
             style="border: 2px solid var(--secondary-color); color: var(--text-color); padding: 0.8rem 1.8rem; border-radius: 5px; text-decoration: none; font-weight: bold;">
-            Track Status
+            Register Student Account
         </a>
         {% endif %}
     </div>

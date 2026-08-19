@@ -56,12 +56,20 @@ class Complaint(db.Model):
     def submission_date(self):
         return self.created_at
 
-# Create tables inside app context safely
+# --- Startup Database Schema Sync ---
 with app.app_context():
     try:
+        # Create missing tables
         db.create_all()
+        
+        # Patch missing columns on PostgreSQL automatically on cold boot
+        if 'postgresql' in db_url:
+            db.session.execute(db.text("ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS department VARCHAR(100);"))
+            db.session.execute(db.text("ALTER TABLE complaint ADD COLUMN IF NOT EXISTS reference_number VARCHAR(50);"))
+            db.session.commit()
     except Exception as e:
-        print(f"Database setup note: {e}")
+        db.session.rollback()
+        print(f"Database auto-patch notification: {e}")
 
 # --- Helper Functions ---
 def generate_ref_code():
@@ -219,6 +227,27 @@ def logout():
     session.clear()
     flash('You have been logged out.', 'info')
     return redirect(url_for('login'))
+
+@app.route('/fix-db-schema-2026')
+def fix_db_schema():
+    try:
+        with app.app_context():
+            # 1. Direct Column Alterations for existing production tables
+            db.session.execute(db.text("ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS department VARCHAR(100);"))
+            db.session.execute(db.text("ALTER TABLE complaint ADD COLUMN IF NOT EXISTS reference_number VARCHAR(50);"))
+            db.create_all()
+            db.session.commit()
+        return "Database schema patched successfully! Return to /login and try logging in."
+    except Exception as e:
+        # 2. Hard Reset fallback if schema corruption prevents altering
+        try:
+            db.session.rollback()
+            db.drop_all()
+            db.create_all()
+            db.session.commit()
+            return "Database tables reset and recreated cleanly! Register a new user and log in."
+        except Exception as drop_err:
+            return f"Database repair failed: {str(drop_err)}"
 
 if __name__ == '__main__':
     app.run(debug=True)

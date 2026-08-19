@@ -26,7 +26,7 @@ app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_USERNAME')
 db = SQLAlchemy(app)
 mail = Mail(app)
 
-# Database Models
+# --- Database Models ---
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     full_name = db.Column(db.String(150), nullable=False)
@@ -45,15 +45,36 @@ class Complaint(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref=db.backref('complaints', lazy=True))
 
-# Create tables with Modern Flask 3.x syntax
+# Create tables inside app context safely
 with app.app_context():
-    db.create_all()
+    try:
+        db.create_all()
+    except Exception as e:
+        print(f"Database setup note: {e}")
 
 # --- Routes ---
 
 @app.route('/')
-def index():
-    return redirect(url_for('login'))
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password')
+
+        user = User.query.filter_by(email=email).first()
+
+        if user and check_password_hash(user.password, password):
+            session['user_id'] = user.id
+            session['full_name'] = user.full_name
+            session['is_admin'] = user.is_admin
+
+            if user.is_admin:
+                return redirect(url_for('admin_dashboard'))
+            return redirect(url_for('student_dashboard'))
+        else:
+            flash('Invalid email or password.', 'danger')
+
+    return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -64,7 +85,7 @@ def register():
         department = request.form.get('department', '').strip()
         password = request.form.get('password')
 
-        # Flexible domain validation: matches @bouesti.edu.ng and subdomains
+        # Flexible student email validation
         if not (email.endswith('bouesti.edu.ng') or '@bouesti.edu.ng' in email):
             flash('You cannot create an account because you are not recognized as a BOUESTI student.', 'danger')
             return redirect(url_for('register'))
@@ -91,27 +112,6 @@ def register():
         return redirect(url_for('login'))
 
     return render_template('register.html')
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        email = request.form.get('email', '').strip().lower()
-        password = request.form.get('password')
-
-        user = User.query.filter_by(email=email).first()
-
-        if user and check_password_hash(user.password, password):
-            session['user_id'] = user.id
-            session['full_name'] = user.full_name
-            session['is_admin'] = user.is_admin
-
-            if user.is_admin:
-                return redirect(url_for('admin_dashboard'))
-            return redirect(url_for('student_dashboard'))
-        else:
-            flash('Invalid email or password.', 'danger')
-
-    return render_template('login.html')
 
 @app.route('/student/dashboard')
 def student_dashboard():
@@ -161,7 +161,7 @@ def update_status(complaint_id):
     complaint.status = new_status
     db.session.commit()
 
-    # Send status email notification
+    # Send status notification email
     try:
         msg = Message(
             f"Complaint Status Update: {complaint.title}",

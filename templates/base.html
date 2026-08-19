@@ -17,7 +17,7 @@
 
 <body>
     <header class="navbar">
-        <a href="{{ url_for('index') if 'index' in eval('dir()') else url_for('login') }}" class="brand">
+        <a href="{{ url_for('index') }}" class="brand">
             <!-- Light Theme Logo (Shown in Light Mode) -->
             <img src="{{ url_for('static', filename='images/logo.png') }}" alt="BOUESTI Logo" class="logo-light"
                 style="height: 38px; width: auto;" onerror="this.style.display='none'">

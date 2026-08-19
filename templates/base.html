@@ -17,7 +17,7 @@
 
 <body>
     <header class="navbar">
-        <a href="{{ url_for('login') }}" class="brand">
+        <a href="{{ url_for('index') if 'index' in eval('dir()') else url_for('login') }}" class="brand">
             <!-- Light Theme Logo (Shown in Light Mode) -->
             <img src="{{ url_for('static', filename='images/logo.png') }}" alt="BOUESTI Logo" class="logo-light"
                 style="height: 38px; width: auto;" onerror="this.style.display='none'">
@@ -30,7 +30,8 @@
         </a>
 
         <ul class="nav-links">
-            <li><a href="{{ url_for('login') }}">Home</a></li>
+            <li><a href="{{ url_for('track_complaint') }}">Track Complaint</a></li>
+
             {% if session.get('user_id') %}
             {% if session.get('is_admin') %}
             <li><a href="{{ url_for('admin_dashboard') }}">Admin Portal</a></li>
@@ -38,14 +39,21 @@
             <li><a href="{{ url_for('student_dashboard') }}">Dashboard</a></li>
             <li><a href="{{ url_for('submit_complaint') }}">File Complaint</a></li>
             {% endif %}
-            <li><a href="{{ url_for('logout') }}" style="color: var(--primary-color); font-weight: bold;">Logout ({{
-                    session.get('full_name') }})</a></li>
+            <li>
+                <a href="{{ url_for('logout') }}" style="color: var(--primary-color); font-weight: bold;">
+                    Logout ({{ session.get('full_name') }})
+                </a>
+            </li>
             {% else %}
             <li><a href="{{ url_for('login') }}">Login</a></li>
-            <li><a href="{{ url_for('register') }}"
-                    style="background-color: var(--primary-color); color: #ffffff; padding: 0.4rem 1rem; border-radius: 4px; font-weight: 600;">Reg</a>
+            <li>
+                <a href="{{ url_for('register') }}"
+                    style="background-color: var(--primary-color); color: #ffffff; padding: 0.4rem 1rem; border-radius: 4px; font-weight: 600;">
+                    Register
+                </a>
             </li>
             {% endif %}
+
             <li>
                 <button class="theme-toggle-btn" id="themeToggle" aria-label="Toggle Theme">
                     <span id="themeIcon">🌙</span>

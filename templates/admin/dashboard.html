@@ -30,7 +30,7 @@
         </thead>
         <tbody>
             {% for c in complaints %}
-            <tr style="border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.05)); align-items: top;">
+            <tr style="border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.05)); vertical-align: top;">
                 <!-- Reference Number Link -->
                 <td style="padding: 1rem; font-weight: 700; font-family: monospace;">
                     <a href="{{ url_for('view_complaint', complaint_id=c.id) }}"

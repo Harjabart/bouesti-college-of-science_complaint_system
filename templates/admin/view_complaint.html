@@ -21,29 +21,17 @@
             </span>
         </div>
 
-        <h3 style="margin-bottom: 0.5rem;">{{ complaint.subject }}</h3>
+        <h3 style="margin-bottom: 0.5rem;">{{ complaint.title }}</h3>
         <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">
-            Submitted by <strong>{{ complaint.student.full_name }}</strong> ({{ complaint.student.username }}) on {{
-            complaint.submission_date.strftime('%b %d, %Y at %I:%M %p') }}
+            Submitted by <strong>{{ complaint.user.full_name if complaint.user else 'Unknown Student' }}</strong>
+            ({{ complaint.user.matric_no if complaint.user else 'N/A' }}) on
+            {{ complaint.created_at.strftime('%b %d, %Y at %I:%M %p') if complaint.created_at else 'N/A' }}
         </p>
 
         <hr style="border: none; border-top: 1px solid var(--border-color); margin-bottom: 1.5rem;">
 
         <h4>Description</h4>
         <p style="margin-top: 0.5rem; line-height: 1.6; white-space: pre-line;">{{ complaint.description }}</p>
-
-        <h4 style="margin-top: 2rem; margin-bottom: 1rem;">Audit Trail & History</h4>
-        <ul style="list-style: none; padding: 0;">
-            {% for h in complaint.status_history %}
-            <li style="padding: 0.75rem 0; border-bottom: 1px solid var(--border-color); font-size: 0.9rem;">
-                <strong>Status changed to "{{ h.new_status }}"</strong>
-                <span style="color: var(--text-muted);">&bull; {{ h.change_date.strftime('%b %d, %Y %I:%M %p') }}</span>
-                {% if h.notes %}
-                <p style="margin-top: 0.3rem; color: var(--text-muted); font-style: italic;">Note: {{ h.notes }}</p>
-                {% endif %}
-            </li>
-            {% endfor %}
-        </ul>
     </div>
 
     <!-- Update Action Box -->
@@ -51,21 +39,15 @@
         style="background-color: var(--card-bg); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border-color); height: fit-content;">
         <h3 style="margin-bottom: 1rem; color: var(--primary-color);">Update Complaint Status</h3>
 
-        <form action="{{ url_for('admin_view_complaint', complaint_id=complaint.id) }}" method="POST">
-            <div style="margin-bottom: 1rem;">
+        <form action="{{ url_for('update_status', complaint_id=complaint.id) }}" method="POST">
+            <div style="margin-bottom: 1.5rem;">
                 <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Status</label>
                 <select name="status" required
                     style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-color); color: var(--text-color);">
-                    {% for st in ['Submitted', 'Under Review', 'Referred', 'Action Taken', 'Resolved', 'Rejected'] %}
+                    {% for st in ['Pending', 'Under Review', 'Resolved', 'Rejected'] %}
                     <option value="{{ st }}" {% if complaint.status==st %}selected{% endif %}>{{ st }}</option>
                     {% endfor %}
                 </select>
-            </div>
-
-            <div style="margin-bottom: 1.5rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Admin Notes / Remarks</label>
-                <textarea name="notes" rows="4" placeholder="Enter reason or resolution summary..."
-                    style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-color); color: var(--text-color); resize: vertical;"></textarea>
             </div>
 
             <button type="submit"

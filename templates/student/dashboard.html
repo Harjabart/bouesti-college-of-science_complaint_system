@@ -6,41 +6,92 @@
 <div
     style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
     <div>
-        <h2 style="color: var(--primary-color);">Student Dashboard</h2>
-        <p style="color: var(--text-muted);">Welcome back to your complaint management portal</p>
+        <h2 style="color: var(--primary-color); font-weight: 800; margin-bottom: 0.2rem;">Student Dashboard</h2>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">Manage, track, and monitor your submitted grievances in
+            real time.</p>
     </div>
     <a href="{{ url_for('submit_complaint') }}"
-        style="background-color: var(--primary-color); color: #fff; padding: 0.75rem 1.5rem; border-radius: 5px; text-decoration: none; font-weight: bold;">
+        style="background-color: var(--primary-color); color: #ffffff; padding: 0.75rem 1.5rem; border-radius: 6px; text-decoration: none; font-weight: 700; box-shadow: 0 4px 12px rgba(224, 86, 36, 0.25); transition: transform 0.2s;">
         + Submit New Complaint
     </a>
 </div>
 
 {% if complaints %}
 <div
-    style="overflow-x: auto; background-color: var(--card-bg); border-radius: 8px; border: 1px solid var(--border-color);">
-    <table style="width: 100%; border-collapse: collapse; text-align: left;">
+    style="overflow-x: auto; background-color: var(--card-bg, #1e1e1e); border-radius: 8px; border: 1px solid var(--border-color, rgba(255,255,255,0.08)); box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.95rem;">
         <thead>
-            <tr style="border-bottom: 2px solid var(--border-color); background-color: var(--bg-color);">
-                <th style="padding: 1rem;">Ref ID</th>
-                <th style="padding: 1rem;">Category</th>
-                <th style="padding: 1rem;">Title</th>
-                <th style="padding: 1rem;">Status</th>
-                <th style="padding: 1rem;">Date</th>
+            <tr
+                style="border-bottom: 2px solid var(--border-color, rgba(255,255,255,0.1)); background-color: rgba(0,0,0,0.2);">
+                <th style="padding: 1rem; color: var(--text-color);">Ref ID</th>
+                <th style="padding: 1rem; color: var(--text-color);">Category</th>
+                <th style="padding: 1rem; color: var(--text-color);">Subject</th>
+                <th style="padding: 1rem; color: var(--text-color);">Evidence</th>
+                <th style="padding: 1rem; color: var(--text-color);">Status</th>
+                <th style="padding: 1rem; color: var(--text-color);">Date</th>
             </tr>
         </thead>
         <tbody>
             {% for c in complaints %}
-            <tr style="border-bottom: 1px solid var(--border-color);">
-                <td style="padding: 1rem; font-weight: bold; color: var(--primary-color);">{{ c.reference_number }}</td>
-                <td style="padding: 1rem;">{{ c.category if c.category else 'General' }}</td>
-                <td style="padding: 1rem;">{{ c.title }}</td>
+            <tr style="border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.05));">
+                <!-- Reference Number -->
+                <td
+                    style="padding: 1rem; font-weight: 700; color: var(--primary-color); font-family: monospace; font-size: 0.9rem;">
+                    {{ c.reference_number }}
+                </td>
+
+                <!-- Category Badge -->
                 <td style="padding: 1rem;">
                     <span
-                        style="padding: 0.3rem 0.8rem; border-radius: 4px; font-size: 0.85rem; font-weight: bold; background-color: var(--primary-color); color: #fff;">
-                        {{ c.status }}
+                        style="background-color: rgba(255,255,255,0.06); padding: 0.25rem 0.6rem; border-radius: 4px; font-size: 0.8rem; color: var(--text-color);">
+                        {{ c.category if c.category else 'General' }}
                     </span>
                 </td>
-                <td style="padding: 1rem; color: var(--text-muted); font-size: 0.9rem;">
+
+                <!-- Title / Subject -->
+                <td style="padding: 1rem; color: var(--text-color); font-weight: 600;">
+                    {{ c.title }}
+                </td>
+
+                <!-- Attachment Link -->
+                <td style="padding: 1rem;">
+                    {% if c.filename %}
+                    <a href="{{ url_for('uploaded_file', filename=c.filename) }}" target="_blank"
+                        style="color: var(--primary-color); text-decoration: none; font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.3rem;">
+                        📎 View File
+                    </a>
+                    {% else %}
+                    <span style="color: var(--text-muted); font-size: 0.85rem;">None</span>
+                    {% endif %}
+                </td>
+
+                <!-- Dynamic Color Status Badge -->
+                <td style="padding: 1rem;">
+                    {% if c.status == 'Resolved' %}
+                    <span
+                        style="padding: 0.3rem 0.7rem; border-radius: 20px; font-size: 0.8rem; font-weight: 700; background-color: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid rgba(46, 204, 113, 0.3);">
+                        ● Resolved
+                    </span>
+                    {% elif c.status == 'In Progress' %}
+                    <span
+                        style="padding: 0.3rem 0.7rem; border-radius: 20px; font-size: 0.8rem; font-weight: 700; background-color: rgba(241, 196, 15, 0.15); color: #f1c40f; border: 1px solid rgba(241, 196, 15, 0.3);">
+                        ● In Progress
+                    </span>
+                    {% elif c.status == 'Rejected' %}
+                    <span
+                        style="padding: 0.3rem 0.7rem; border-radius: 20px; font-size: 0.8rem; font-weight: 700; background-color: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid rgba(231, 76, 60, 0.3);">
+                        ● Rejected
+                    </span>
+                    {% else %}
+                    <span
+                        style="padding: 0.3rem 0.7rem; border-radius: 20px; font-size: 0.8rem; font-weight: 700; background-color: rgba(224, 86, 36, 0.15); color: var(--primary-color); border: 1px solid rgba(224, 86, 36, 0.3);">
+                        ● Pending
+                    </span>
+                    {% endif %}
+                </td>
+
+                <!-- Submission Date -->
+                <td style="padding: 1rem; color: var(--text-muted); font-size: 0.85rem;">
                     {{ c.created_at.strftime('%Y-%m-%d') if c.created_at else 'N/A' }}
                 </td>
             </tr>
@@ -48,14 +99,19 @@
         </tbody>
     </table>
 </div>
+
 {% else %}
+<!-- Empty State Component -->
 <div
-    style="text-align: center; padding: 3rem; background-color: var(--card-bg); border-radius: 8px; border: 1px solid var(--border-color);">
-    <h3 style="color: var(--text-muted); margin-bottom: 1rem;">No complaints submitted yet.</h3>
-    <p style="margin-bottom: 1.5rem; color: var(--text-muted);">Have an issue or grievance? Submit your first complaint
-        below.</p>
+    style="text-align: center; padding: 3.5rem 1.5rem; background-color: var(--card-bg, #1e1e1e); border-radius: 8px; border: 1px solid var(--border-color, rgba(255,255,255,0.08));">
+    <div style="font-size: 2.5rem; margin-bottom: 0.8rem;">📋</div>
+    <h3 style="color: var(--text-color); margin-bottom: 0.5rem; font-weight: 700;">No complaints submitted yet</h3>
+    <p
+        style="margin-bottom: 1.8rem; color: var(--text-muted); max-width: 450px; margin-left: auto; margin-right: auto; font-size: 0.95rem;">
+        Have an academic or administrative issue? Submit your first complaint and keep track of its resolution live.
+    </p>
     <a href="{{ url_for('submit_complaint') }}"
-        style="background-color: var(--primary-color); color: #fff; padding: 0.75rem 1.5rem; border-radius: 5px; text-decoration: none; font-weight: bold;">
+        style="background-color: var(--primary-color); color: #ffffff; padding: 0.75rem 1.8rem; border-radius: 6px; text-decoration: none; font-weight: 700; box-shadow: 0 4px 12px rgba(224, 86, 36, 0.25);">
         File a Complaint
     </a>
 </div>

@@ -3,91 +3,125 @@
 {% block title %}Admin Dashboard - BOUESTI Complaint Portal{% endblock %}
 
 {% block content %}
-<div style="margin-bottom: 2rem;">
-    <h2 style="color: var(--primary-color);">Administrator Management Portal</h2>
-    <p style="color: var(--text-muted);">Overview of student complaints across the College of Science.</p>
-</div>
-
-<!-- Metrics Cards -->
 <div
-    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
-    <div
-        style="background-color: var(--card-bg); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border-color); text-align: center;">
-        <h3 style="font-size: 2rem; color: var(--text-color);">{{ total if total is defined else complaints|length }}
-        </h3>
-        <p style="color: var(--text-muted); font-size: 0.9rem;">Total Complaints</p>
-    </div>
-    <div
-        style="background-color: var(--card-bg); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border-color); text-align: center;">
-        <h3 style="font-size: 2rem; color: var(--primary-color);">
-            {{ pending if pending is defined else complaints|selectattr('status', 'equalto', 'Pending')|list|length }}
-        </h3>
-        <p style="color: var(--text-muted); font-size: 0.9rem;">Pending / Under Review</p>
-    </div>
-    <div
-        style="background-color: var(--card-bg); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border-color); text-align: center;">
-        <h3 style="font-size: 2rem; color: #2E7D32;">
-            {{ resolved if resolved is defined else complaints|selectattr('status', 'equalto', 'Resolved')|list|length
-            }}
-        </h3>
-        <p style="color: var(--text-muted); font-size: 0.9rem;">Resolved</p>
+    style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h2 style="color: var(--primary-color); font-weight: 800; margin-bottom: 0.2rem;">Admin Management Portal</h2>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">Review student submissions, inspect attached evidence,
+            and update resolution statuses.</p>
     </div>
 </div>
 
-<!-- Complaints Table -->
+{% if complaints %}
 <div
-    style="background-color: var(--card-bg); border-radius: 8px; border: 1px solid var(--border-color); overflow-x: auto;">
-    <table style="width: 100%; border-collapse: collapse; text-align: left;">
+    style="overflow-x: auto; background-color: var(--card-bg, #1e1e1e); border-radius: 8px; border: 1px solid var(--border-color, rgba(255,255,255,0.08)); box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
         <thead>
-            <tr style="border-bottom: 2px solid var(--border-color); background-color: var(--bg-color);">
-                <th style="padding: 1rem;">Ref ID</th>
-                <th style="padding: 1rem;">Student</th>
-                <th style="padding: 1rem;">Title</th>
-                <th style="padding: 1rem;">Status</th>
-                <th style="padding: 1rem;">Update Status</th>
+            <tr
+                style="border-bottom: 2px solid var(--border-color, rgba(255,255,255,0.1)); background-color: rgba(0,0,0,0.2);">
+                <th style="padding: 1rem; color: var(--text-color);">Ref ID</th>
+                <th style="padding: 1rem; color: var(--text-color);">Student</th>
+                <th style="padding: 1rem; color: var(--text-color);">Category</th>
+                <th style="padding: 1rem; color: var(--text-color);">Subject & Details</th>
+                <th style="padding: 1rem; color: var(--text-color);">Evidence</th>
+                <th style="padding: 1rem; color: var(--text-color);">Status</th>
+                <th style="padding: 1rem; color: var(--text-color);">Update</th>
             </tr>
         </thead>
         <tbody>
             {% for c in complaints %}
-            <tr style="border-bottom: 1px solid var(--border-color);">
-                <td style="padding: 1rem; font-weight: bold; color: var(--primary-color);">{{ c.reference_number }}</td>
-                <td style="padding: 1rem;">
-                    {{ c.user.full_name if c.user else 'Unknown Student' }}<br>
-                    <small style="color: var(--text-muted);">({{ c.user.matric_no if c.user else 'N/A' }})</small>
+            <tr style="border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.05)); align-items: top;">
+                <!-- Reference Number -->
+                <td style="padding: 1rem; font-weight: 700; color: var(--primary-color); font-family: monospace;">
+                    {{ c.reference_number }}
                 </td>
-                <td style="padding: 1rem;">{{ c.title }}</td>
+
+                <!-- Student Information -->
+                <td style="padding: 1rem; color: var(--text-color);">
+                    <strong>{{ c.student_name if c.student_name else 'Student' }}</strong><br>
+                    <small style="color: var(--text-muted);">{{ c.student_email if c.student_email else '' }}</small>
+                </td>
+
+                <!-- Category -->
                 <td style="padding: 1rem;">
                     <span
-                        style="padding: 0.3rem 0.8rem; border-radius: 4px; font-size: 0.85rem; font-weight: bold; background-color: var(--primary-color); color: #fff;">
-                        {{ c.status }}
+                        style="background-color: rgba(255,255,255,0.06); padding: 0.25rem 0.6rem; border-radius: 4px; font-size: 0.8rem; color: var(--text-color);">
+                        {{ c.category if c.category else 'General' }}
                     </span>
                 </td>
+
+                <!-- Subject & Description -->
+                <td style="padding: 1rem; max-width: 280px;">
+                    <div style="font-weight: 700; color: var(--text-color); margin-bottom: 0.3rem;">{{ c.title }}</div>
+                    <div
+                        style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
+                        {{ c.description }}
+                    </div>
+                </td>
+
+                <!-- Evidence File Link -->
                 <td style="padding: 1rem;">
-                    <form action="{{ url_for('update_status', complaint_id=c.id) }}" method="POST"
-                        style="display: flex; gap: 0.5rem; align-items: center;">
+                    {% if c.filename %}
+                    <a href="{{ url_for('uploaded_file', filename=c.filename) }}" target="_blank"
+                        style="color: var(--primary-color); text-decoration: none; font-weight: 600; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.3rem;">
+                        📂 View File
+                    </a>
+                    {% else %}
+                    <span style="color: var(--text-muted); font-size: 0.85rem;">None</span>
+                    {% endif %}
+                </td>
+
+                <!-- Current Status -->
+                <td style="padding: 1rem;">
+                    {% if c.status == 'Resolved' %}
+                    <span
+                        style="padding: 0.3rem 0.6rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; background-color: rgba(46, 204, 113, 0.15); color: #2ecc71;">●
+                        Resolved</span>
+                    {% elif c.status == 'In Progress' %}
+                    <span
+                        style="padding: 0.3rem 0.6rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; background-color: rgba(241, 196, 15, 0.15); color: #f1c40f;">●
+                        In Progress</span>
+                    {% elif c.status == 'Rejected' %}
+                    <span
+                        style="padding: 0.3rem 0.6rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; background-color: rgba(231, 76, 60, 0.15); color: #e74c3c;">●
+                        Rejected</span>
+                    {% else %}
+                    <span
+                        style="padding: 0.3rem 0.6rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; background-color: rgba(224, 86, 36, 0.15); color: var(--primary-color);">●
+                        Pending</span>
+                    {% endif %}
+                </td>
+
+                <!-- Update Action Form -->
+                <td style="padding: 1rem;">
+                    <form action="{{ url_for('update_complaint_status', complaint_id=c.id) }}" method="POST"
+                        style="display: flex; gap: 0.4rem;">
                         <select name="status"
-                            style="padding: 0.3rem; border-radius: 4px; border: 1px solid var(--border-color);">
+                            style="padding: 0.4rem; border-radius: 4px; border: 1px solid var(--border-color, #444); background: var(--bg-color, #121212); color: var(--text-color); font-size: 0.8rem;">
                             <option value="Pending" {% if c.status=='Pending' %}selected{% endif %}>Pending</option>
-                            <option value="Under Review" {% if c.status=='Under Review' %}selected{% endif %}>Under
-                                Review</option>
+                            <option value="In Progress" {% if c.status=='In Progress' %}selected{% endif %}>In Progress
+                            </option>
                             <option value="Resolved" {% if c.status=='Resolved' %}selected{% endif %}>Resolved</option>
                             <option value="Rejected" {% if c.status=='Rejected' %}selected{% endif %}>Rejected</option>
                         </select>
                         <button type="submit"
-                            style="padding: 0.3rem 0.8rem; background-color: var(--primary-color); color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem;">
+                            style="background-color: var(--primary-color); color: #fff; border: none; padding: 0.4rem 0.7rem; border-radius: 4px; font-weight: 600; font-size: 0.8rem; cursor: pointer;">
                             Save
                         </button>
                     </form>
-                </td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="5" style="padding: 2rem; text-align: center; color: var(--text-muted);">
-                    No complaints registered in the system yet.
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
+
+{% else %}
+<div
+    style="text-align: center; padding: 3.5rem 1.5rem; background-color: var(--card-bg, #1e1e1e); border-radius: 8px; border: 1px solid var(--border-color, rgba(255,255,255,0.08));">
+    <div style="font-size: 2.5rem; margin-bottom: 0.8rem;">📬</div>
+    <h3 style="color: var(--text-color); margin-bottom: 0.5rem; font-weight: 700;">No complaints to manage</h3>
+    <p style="color: var(--text-muted); font-size: 0.95rem;">Student submissions will appear here automatically.</p>
+</div>
+{% endif %}
 {% endblock %}

@@ -28,7 +28,10 @@ login_manager.login_message_category = 'info'
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    try:
+        return db.session.get(User, int(user_id))
+    except (ValueError, TypeError):
+        return None
 
 # =========================================================================
 # 2. DATABASE MODELS
@@ -83,8 +86,8 @@ def login():
         return redirect(url_for('index'))
         
     if request.method == 'POST':
-        email = request.form.get('email', '').strip()
-        password = request.form.get('password', '')
+        email = str(request.form.get('email', '')).strip()
+        password = str(request.form.get('password', ''))
         
         user = User.query.filter_by(email=email).first()
         if user and check_password_hash(user.password_hash, password):
@@ -118,8 +121,8 @@ def admin_dashboard():
         flash('Unauthorized access.', 'danger')
         return redirect(url_for('student_dashboard'))
         
-    query = request.args.get('q', '').strip()
-    status_filter = request.args.get('status', '').strip()
+    query = str(request.args.get('q', '')).strip()
+    status_filter = str(request.args.get('status', '')).strip()
     
     complaints_query = Complaint.query
     
@@ -127,22 +130,27 @@ def admin_dashboard():
         complaints_query = complaints_query.filter(Complaint.status == status_filter)
         
     if query:
-        complaints_query = complaints_query.join(User).filter(
-            (Complaint.reference_number.ilike(f'%{query}%')) |
-            (Complaint.subject.ilike(f'%{query}%')) |
-            (User.full_name.ilike(f'%{query}%')) |
-            (User.matric_no.ilike(f'%{query}%'))
+        search_pattern = f"%{query}%"
+        complaints_query = complaints_query.join(User, Complaint.user_id == User.id).filter(
+            (Complaint.reference_number.ilike(search_pattern)) |
+            (Complaint.subject.ilike(search_pattern)) |
+            (User.full_name.ilike(search_pattern)) |
+            (User.matric_no.ilike(search_pattern))
         )
         
     complaints = complaints_query.order_by(Complaint.submission_date.desc()).all()
     return render_template('admin/dashboard.html', complaints=complaints)
 
 # =========================================================================
-# 4. AUTOMATIC DATABASE BOOTSTRAPPER (Renders / Production Ready)
+# 4. SAFE AUTOMATIC DATABASE BOOTSTRAPPER
 # =========================================================================
-def init_db_on_startup():
-    with app.app_context():
-        # Create all database tables
+@app.before_request
+def ensure_db_initialized():
+    """Runs once on the very first web request to safely initialize DB tables & seeds."""
+    if getattr(app, '_db_initialized', False):
+        return
+
+    try:
         db.create_all()
 
         # Seed Default Complaint Categories
@@ -160,8 +168,9 @@ def init_db_on_startup():
         for cat_name in default_categories:
             if not Category.query.filter_by(name=cat_name).first():
                 db.session.add(Category(name=cat_name))
+        db.session.commit()
 
-        # Seed Default Admin Account (Using compatible pbkdf2:sha256 hash)
+        # Seed Default Admin Account
         admin_email = "admin@bouesti.edu.ng"
         if not User.query.filter_by(email=admin_email).first():
             hashed_password = generate_password_hash("Admin@BOUESTI2026!", method="pbkdf2:sha256")
@@ -173,14 +182,15 @@ def init_db_on_startup():
                 password_hash=hashed_password
             )
             db.session.add(admin_user)
+            db.session.commit()
 
-        db.session.commit()
-
-# Execute automatic database bootstrap on start
-init_db_on_startup()
+        app._db_initialized = True
+    except Exception as e:
+        db.session.rollback()
+        print(f"Database Initialization Note: {e}")
 
 # =========================================================================
-# 5. ENTRY POINT
+# 5. LOCAL ENTRY POINT
 # =========================================================================
 if __name__ == '__main__':
     app.run(debug=True)

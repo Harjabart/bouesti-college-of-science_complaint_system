@@ -37,7 +37,7 @@
                 <!-- Reference Number -->
                 <td
                     style="padding: 1rem; font-weight: 700; color: var(--primary-color); font-family: monospace; font-size: 0.9rem;">
-                    {{ c.reference_number }}
+                    {{ c.reference_number if c.reference_number else 'N/A' }}
                 </td>
 
                 <!-- Category Badge -->
@@ -53,9 +53,9 @@
                     {{ c.title }}
                 </td>
 
-                <!-- Attachment Link -->
+                <!-- Safe Attachment Check -->
                 <td style="padding: 1rem;">
-                    {% if c.filename %}
+                    {% if c.filename is defined and c.filename %}
                     <a href="{{ url_for('uploaded_file', filename=c.filename) }}" target="_blank"
                         style="color: var(--primary-color); text-decoration: none; font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.3rem;">
                         📎 View File
@@ -72,10 +72,10 @@
                         style="padding: 0.3rem 0.7rem; border-radius: 20px; font-size: 0.8rem; font-weight: 700; background-color: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid rgba(46, 204, 113, 0.3);">
                         ● Resolved
                     </span>
-                    {% elif c.status == 'In Progress' %}
+                    {% elif c.status == 'In Progress' or c.status == 'Under Review' %}
                     <span
                         style="padding: 0.3rem 0.7rem; border-radius: 20px; font-size: 0.8rem; font-weight: 700; background-color: rgba(241, 196, 15, 0.15); color: #f1c40f; border: 1px solid rgba(241, 196, 15, 0.3);">
-                        ● In Progress
+                        ● {{ c.status }}
                     </span>
                     {% elif c.status == 'Rejected' %}
                     <span
@@ -90,9 +90,17 @@
                     {% endif %}
                 </td>
 
-                <!-- Submission Date -->
+                <!-- Safe Date Formatter -->
                 <td style="padding: 1rem; color: var(--text-muted); font-size: 0.85rem;">
-                    {{ c.created_at.strftime('%Y-%m-%d') if c.created_at else 'N/A' }}
+                    {% if c.created_at is defined and c.created_at %}
+                    {% if c.created_at.strftime is defined %}
+                    {{ c.created_at.strftime('%Y-%m-%d') }}
+                    {% else %}
+                    {{ c.created_at|string }}
+                    {% endif %}
+                    {% else %}
+                    N/A
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}

@@ -173,7 +173,7 @@ def admin_dashboard():
     return render_template('admin/dashboard.html', complaints=complaints)
 
 # =========================================================================
-# 4. SAFE BOOTSTRAPPER WITH TABLE RE-SYNC
+# 4. SAFE BOOTSTRAPPER WITH CASCADE TABLE RE-SYNC
 # =========================================================================
 @app.before_request
 def ensure_db_initialized():
@@ -233,7 +233,7 @@ def ensure_db_initialized():
     except Exception as e:
         db.session.rollback()
         print(f"Database Initialization Note: {e}")
-        
+
 # =========================================================================
 # 5. ENTRY POINT
 # =========================================================================

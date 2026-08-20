@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 
 <head>
     <meta charset="UTF-8">
@@ -15,14 +15,16 @@
 
 <body class="d-flex flex-column min-vh-100">
 
-    <!-- NAVBAR WITH LOGO & TRACK LINK -->
+    <!-- NAVBAR WITH LOGO, TRACK LINK & THEME TOGGLE -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm">
         <div class="container">
             <a class="navbar-brand d-flex align-items-center gap-2" href="{{ url_for('index') }}">
-                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="BOUESTI Logo" height="40"
-                    onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
-                <i class="fas fa-university fa-lg text-warning" style="display: none;"></i>
-                <span class="fw-bold text-white ms-1">BOUESTI <span class="text-warning">Portal</span></span>
+                <!-- Dynamic Theme-Aware Logo -->
+                <img id="navbar-logo" src="{{ url_for('static', filename='images/logo-light.png') }}" alt="BOUESTI Logo"
+                    height="40" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+                <i class="fas fa-university fa-lg text-burnt-orange" style="display: none;"></i>
+                <!-- BOUESTI Text is Black in Light Mode and White in Dark Mode -->
+                <span class="fw-bold text-theme-brand ms-1">BOUESTI <span class="text-burnt-orange">Portal</span></span>
             </a>
 
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -31,9 +33,16 @@
 
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto align-items-center gap-2">
-                    <!-- Track Complaint Link (Always Visible) -->
+                    <!-- Dark / Light Mode Toggle Button -->
                     <li class="nav-item">
-                        <a class="nav-link text-warning fw-semibold" href="{{ url_for('track_complaint') }}">
+                        <button id="theme-toggle" class="theme-toggle-btn" title="Toggle Light/Dark Theme">
+                            <i id="theme-icon" class="fas fa-moon"></i>
+                        </button>
+                    </li>
+
+                    <!-- Track Complaint Link -->
+                    <li class="nav-item">
+                        <a class="nav-link text-burnt-orange fw-semibold" href="{{ url_for('track_complaint') }}">
                             <i class="fas fa-search me-1"></i> Track Complaint
                         </a>
                     </li>
@@ -58,7 +67,7 @@
                     </li>
                     {% endif %}
                     <li class="nav-item">
-                        <a class="btn btn-outline-light btn-sm ms-2" href="{{ url_for('logout') }}">
+                        <a class="btn btn-outline-burnt-orange btn-sm ms-2" href="{{ url_for('logout') }}">
                             <i class="fas fa-sign-out-alt me-1"></i> Logout ({{ current_user.full_name.split()[0] }})
                         </a>
                     </li>
@@ -69,7 +78,8 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="btn btn-warning text-dark btn-sm fw-bold px-3 ms-1" href="{{ url_for('register') }}">
+                        <a class="btn btn-burnt-orange text-white btn-sm fw-bold px-3 ms-1"
+                            href="{{ url_for('register') }}">
                             <i class="fas fa-user-plus me-1"></i> Register
                         </a>
                     </li>
@@ -94,12 +104,12 @@
     </div>
 
     <!-- MAIN CONTENT -->
-    <main class="flex-grow-1">
+    <main class="main-content flex-grow-1">
         {% block content %}{% endblock %}
     </main>
 
     <!-- FOOTER -->
-    <footer class="bg-dark text-white-50 text-center py-3 mt-5 border-top border-secondary">
+    <footer class="footer text-center py-3 mt-5">
         <div class="container">
             <small>&copy; 2026 Bamidele Olumilua University of Education, Science and Technology, Ikere-Ekiti
                 (BOUESTI).</small>
@@ -108,7 +118,41 @@
 
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+    <!-- Theme & Logo Switcher Script -->
+    <script>
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+        const navbarLogo = document.getElementById('navbar-logo');
+        const htmlElement = document.documentElement;
+
+        const logoLightPath = "{{ url_for('static', filename='images/logo-light.png') }}";
+        const logoDarkPath = "{{ url_for('static', filename='images/logo-dark.png') }}";
+
+        // Load saved theme preference
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        htmlElement.setAttribute('data-theme', savedTheme);
+        applyThemeAssets(savedTheme);
+
+        themeToggleBtn.addEventListener('click', () => {
+            const currentTheme = htmlElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+
+            htmlElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            applyThemeAssets(newTheme);
+        });
+
+        function applyThemeAssets(theme) {
+            if (theme === 'dark') {
+                themeIcon.className = 'fas fa-sun text-warning';
+                if (navbarLogo) navbarLogo.src = logoDarkPath;
+            } else {
+                themeIcon.className = 'fas fa-moon';
+                if (navbarLogo) navbarLogo.src = logoLightPath;
+            }
+        }
+    </script>
 </body>
 
 </html>

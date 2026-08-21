@@ -190,18 +190,24 @@ def register():
 def reset_request():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
+    
     if request.method == 'POST':
         email = str(request.form.get('email', '')).strip()
         user = User.query.filter_by(email=email).first()
+        
         if user:
             try:
                 send_reset_email(user)
                 flash('An email has been sent with instructions to reset your password.', 'info')
             except Exception as e:
+                print(f"SMTP EXCEPTION: {e}")  # Logs error to Render console
                 flash('Unable to send reset email at this moment. Please check network settings.', 'danger')
         else:
+            # Flashing the same message prevents email enumeration/security leaks
             flash('An email has been sent with instructions to reset your password.', 'info')
+            
         return redirect(url_for('login'))
+        
     return render_template('reset_request.html')
 
 @app.route('/reset_password/<token>', methods=['GET', 'POST'])

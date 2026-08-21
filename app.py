@@ -6,7 +6,8 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-from flask_mail import Mail, Message
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
 from itsdangerous import URLSafeTimedSerializer as Serializer
 
 # =========================================================================
@@ -14,17 +15,6 @@ from itsdangerous import URLSafeTimedSerializer as Serializer
 # =========================================================================
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'bouesti-secret-key-2026-production')
-
-# Mail Configuration (Gmail SMTP over TLS)
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USE_SSL'] = False
-app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
-app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_USERNAME')
-
-mail = Mail(app)
 
 # File Upload Configuration
 UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads')
@@ -109,22 +99,29 @@ class Complaint(db.Model):
 # =========================================================================
 def send_reset_email(user):
     token = user.get_reset_token()
-    msg = Message(
-        'BOUESTI Student Portal - Password Reset Request',
-        sender=app.config['MAIL_USERNAME'],
-        recipients=[user.email]
-    )
     reset_url = url_for('reset_token', token=token, _external=True)
-    msg.body = f'''To reset your password for the BOUESTI Student Complaint Portal, please visit the following link:
-{reset_url}
-
-If you did not make this request, simply ignore this email and no changes will be made.
-Note: This link is valid for 30 minutes.
-
-Best regards,
-BOUESTI Complaint Management Team
-'''
-    mail.send(msg)
+    
+    sender_email = os.environ.get('MAIL_USERNAME')
+    
+    message = Mail(
+        from_email=sender_email,
+        to_emails=user.email,
+        subject='BOUESTI Student Portal - Password Reset Request',
+        html_content=f'''
+        <p>Hello,</p>
+        <p>To reset your password for the BOUESTI Student Complaint Portal, please click the link below:</p>
+        <p><a href="{reset_url}" style="background-color: #007bff; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">Reset Password</a></p>
+        <p>Or copy and paste this link into your browser:</p>
+        <p><a href="{reset_url}">{reset_url}</a></p>
+        <p>If you did not make this request, simply ignore this email and no changes will be made.<br>
+        <em>Note: This link is valid for 30 minutes.</em></p>
+        <p>Best regards,<br>BOUESTI Complaint Management Team</p>
+        '''
+    )
+    
+    sg = SendGridAPIClient(os.environ.get('SENDGRID_API_KEY'))
+    response = sg.send(message)
+    print(f"SendGrid Status Code: {response.status_code}")
 
 # =========================================================================
 # 3. ROUTES & CONTROLLERS
@@ -201,7 +198,7 @@ def reset_request():
                 send_reset_email(user)
                 flash('An email has been sent with instructions to reset your password.', 'info')
             except Exception as e:
-                print(f"SMTP EXCEPTION: {e}")  # Logs error to Render console
+                print(f"SENDGRID EXCEPTION: {e}")  # Logs error to Render console
                 flash('Unable to send reset email at this moment. Please check network settings.', 'danger')
         else:
             # Flashing the same message prevents email enumeration/security leaks

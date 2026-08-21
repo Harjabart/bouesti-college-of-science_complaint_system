@@ -14,10 +14,15 @@
                 style="width: 100%; box-sizing: border-box; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-color); color: var(--text-color);">
         </div>
 
-        <div style="margin-bottom: 1.5rem;">
+        <div style="margin-bottom: 1rem;">
             <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Password</label>
             <input type="password" name="password" required
                 style="width: 100%; box-sizing: border-box; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-color); color: var(--text-color);">
+        </div>
+
+        <div class="text-end mb-3" style="text-align: right; margin-bottom: 1rem;">
+            <a href="{{ url_for('reset_request') }}" class="text-decoration-none"
+                style="color: var(--primary-color); font-size: 0.85rem; text-decoration: none;">Forgot Password?</a>
         </div>
 
         <button type="submit"

@@ -6,12 +6,23 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+from flask_mail import Mail, Message
+from itsdangerous import URLSafeTimedSerializer as Serializer
 
 # =========================================================================
 # 1. APPLICATION & DATABASE CONFIGURATION
 # =========================================================================
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'bouesti-secret-key-2026-production')
+
+# Mail Configuration (Gmail SMTP)
+app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 465))
+app.config['MAIL_USE_SSL'] = os.environ.get('MAIL_USE_SSL', 'True').lower() in ['true', 'on', '1']
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
+
+mail = Mail(app)
 
 # File Upload Configuration
 UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads')
@@ -56,6 +67,19 @@ class User(db.Model, UserMixin):
     
     complaints = db.relationship('Complaint', backref='student', lazy=True)
 
+    def get_reset_token(self):
+        s = Serializer(app.config['SECRET_KEY'])
+        return s.dumps({'user_id': self.id})
+
+    @staticmethod
+    def verify_reset_token(token, expires_sec=1800):
+        s = Serializer(app.config['SECRET_KEY'])
+        try:
+            user_id = s.loads(token, max_age=expires_sec)['user_id']
+        except Exception:
+            return None
+        return db.session.get(User, user_id)
+
 class Category(db.Model):
     __tablename__ = 'categories'
     
@@ -77,6 +101,28 @@ class Complaint(db.Model):
     
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
+
+# =========================================================================
+# HELPER FUNCTIONS
+# =========================================================================
+def send_reset_email(user):
+    token = user.get_reset_token()
+    msg = Message(
+        'BOUESTI Student Portal - Password Reset Request',
+        sender=app.config['MAIL_USERNAME'],
+        recipients=[user.email]
+    )
+    reset_url = url_for('reset_token', token=token, _external=True)
+    msg.body = f'''To reset your password for the BOUESTI Student Complaint Portal, please visit the following link:
+{reset_url}
+
+If you did not make this request, simply ignore this email and no changes will be made.
+Note: This link is valid for 30 minutes.
+
+Best regards,
+BOUESTI Complaint Management Team
+'''
+    mail.send(msg)
 
 # =========================================================================
 # 3. ROUTES & CONTROLLERS
@@ -138,6 +184,48 @@ def register():
         return redirect(url_for('login'))
         
     return render_template('register.html')
+
+@app.route('/reset_password', methods=['GET', 'POST'])
+def reset_request():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    if request.method == 'POST':
+        email = str(request.form.get('email', '')).strip()
+        user = User.query.filter_by(email=email).first()
+        if user:
+            try:
+                send_reset_email(user)
+                flash('An email has been sent with instructions to reset your password.', 'info')
+            except Exception as e:
+                flash('Unable to send reset email at this moment. Please check network settings.', 'danger')
+        else:
+            flash('An email has been sent with instructions to reset your password.', 'info')
+        return redirect(url_for('login'))
+    return render_template('reset_request.html')
+
+@app.route('/reset_password/<token>', methods=['GET', 'POST'])
+def reset_token(token):
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    user = User.verify_reset_token(token)
+    if user is None:
+        flash('That is an invalid or expired token. Please request a new password reset.', 'danger')
+        return redirect(url_for('reset_request'))
+    
+    if request.method == 'POST':
+        password = str(request.form.get('password', ''))
+        confirm_password = str(request.form.get('confirm_password', ''))
+        
+        if password != confirm_password:
+            flash('Passwords do not match. Please try again.', 'warning')
+            return render_template('reset_token.html')
+            
+        user.password_hash = generate_password_hash(password, method='pbkdf2:sha256')
+        db.session.commit()
+        flash('Your password has been updated! You can now log in.', 'success')
+        return redirect(url_for('login'))
+        
+    return render_template('reset_token.html')
 
 @app.route('/logout')
 @login_required

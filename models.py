@@ -1,42 +1,48 @@
 from datetime import datetime
-from flask_sqlalchemy import SQLAlchemy
-from flask_login import UserMixin
-from werkzeug.security import generate_password_hash, check_password_hash
+from itsdangerous import URLSafeTimedSerializer as Serializer
+from flask import current_app
+from extensions import db
 
-db = SQLAlchemy()
-
-class User(UserMixin, db.Model):
+class User(db.Model):
     __tablename__ = 'users'
-    
+
     id = db.Column(db.Integer, primary_key=True)
+    matric_number = db.Column(db.String(30), unique=True, nullable=True)
     full_name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    matric_no = db.Column(db.String(50), unique=True, nullable=True)
+    phone = db.Column(db.String(20), nullable=True)
+    department = db.Column(db.String(100), nullable=True)
+    level = db.Column(db.String(20), nullable=True)
     password_hash = db.Column(db.String(255), nullable=False)
-    role = db.Column(db.String(20), nullable=False, default='Student')  # Roles: Student, Admin, SuperAdmin
-    is_admin = db.Column(db.Boolean, default=False)
-    registration_date = db.Column(db.DateTime, default=datetime.utcnow)
+    role = db.Column(db.String(20), nullable=False, default='student')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships
-    complaints = db.relationship('Complaint', backref='student', lazy=True, cascade="all, delete-orphan")
-    status_changes = db.relationship('StatusHistory', backref='changed_by', lazy=True)
+    complaints = db.relationship('Complaint', backref='student', lazy=True, foreign_keys='Complaint.student_id')
+    assigned_complaints = db.relationship('Complaint', backref='assigned_staff', lazy=True, foreign_keys='Complaint.assigned_to')
+    comments = db.relationship('Comment', backref='user', lazy=True)
 
-    # Password Helpers
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
+    def get_reset_token(self):
+        s = Serializer(current_app.config['SECRET_KEY'])
+        return s.dumps({'user_id': self.id})
 
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
+    @staticmethod
+    def verify_reset_token(token, expires_sec=1800):  # Token expires in 30 mins
+        s = Serializer(current_app.config['SECRET_KEY'])
+        try:
+            user_id = s.loads(token, max_age=expires_sec)['user_id']
+        except Exception:
+            return None
+        return User.query.get(user_id)
 
     def __repr__(self):
-        return f"<User {self.email} ({self.role})>"
-
+        return f"<User {self.full_name} ({self.role})>"
 
 class Category(db.Model):
     __tablename__ = 'categories'
-    
+
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), unique=True, nullable=False)  # e.g., Academic Issues, Laboratory Concerns
+    name = db.Column(db.String(50), nullable=False, unique=True)
     description = db.Column(db.Text, nullable=True)
 
     # Relationships
@@ -45,39 +51,55 @@ class Category(db.Model):
     def __repr__(self):
         return f"<Category {self.name}>"
 
-
 class Complaint(db.Model):
     __tablename__ = 'complaints'
-    
+
     id = db.Column(db.Integer, primary_key=True)
-    reference_number = db.Column(db.String(30), unique=True, nullable=False)  # e.g., CSC-2026-0045
+    tracking_id = db.Column(db.String(20), unique=True, nullable=False)
     student_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
     subject = db.Column(db.String(150), nullable=False)
     description = db.Column(db.Text, nullable=False)
-    filename = db.Column(db.String(255), nullable=True)
-    status = db.Column(db.String(30), default='Submitted')  # Submitted, Under Review, Referred, Action Taken, Resolved, Rejected
-    priority = db.Column(db.String(10), default='Normal')
-    submission_date = db.Column(db.DateTime, default=datetime.utcnow)
-    last_update = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    attachment = db.Column(db.String(255), nullable=True)
+    priority = db.Column(db.String(20), nullable=False, default='medium')
+    status = db.Column(db.String(20), nullable=False, default='pending')
+    assigned_to = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    status_history = db.relationship('StatusHistory', backref='complaint', cascade="all, delete-orphan", lazy=True)
+    comments = db.relationship('Comment', backref='complaint', lazy=True, cascade="all, delete-orphan")
+    status_history = db.relationship('StatusHistory', backref='complaint', lazy=True, cascade="all, delete-orphan")
 
     def __repr__(self):
-        return f"<Complaint {self.reference_number} - {self.status}>"
+        return f"<Complaint {self.tracking_id} - {self.status}>"
 
+class Comment(db.Model):
+    __tablename__ = 'comments'
+
+    id = db.Column(db.Integer, primary_key=True)
+    complaint_id = db.Column(db.Integer, db.ForeignKey('complaints.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    is_internal = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<Comment by User #{self.user_id} on Complaint #{self.complaint_id}>"
 
 class StatusHistory(db.Model):
     __tablename__ = 'status_history'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     complaint_id = db.Column(db.Integer, db.ForeignKey('complaints.id'), nullable=False)
-    previous_status = db.Column(db.String(30), nullable=True)
-    new_status = db.Column(db.String(30), nullable=False)
-    changed_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    change_date = db.Column(db.DateTime, default=datetime.utcnow)
-    notes = db.Column(db.Text, nullable=True)
+    previous_status = db.Column(db.String(20), nullable=False)
+    new_status = db.Column(db.String(20), nullable=False)
+    changed_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    remarks = db.Column(db.Text, nullable=True)
+    changed_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationship to know who made the status change
+    admin = db.relationship('User', foreign_keys=[changed_by])
 
     def __repr__(self):
         return f"<StatusHistory Complaint #{self.complaint_id}: {self.previous_status} -> {self.new_status}>"

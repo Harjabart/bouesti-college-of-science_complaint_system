@@ -349,61 +349,55 @@ def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 # =========================================================================
-# 4. SAFE BOOTSTRAPPER WITH CASCADE TABLE RE-SYNC
+# 4. SAFE BOOTSTRAPPER (Runs once at app start, not per request)
 # =========================================================================
-@app.before_request
-def ensure_db_initialized():
-    if getattr(app, '_db_initialized', False):
-        return
+def init_db():
+    with app.app_context():
+        try:
+            db.create_all()
 
-    try:
-        db.create_all()
+            from sqlalchemy import inspect, text
+            inspector = inspect(db.engine)
+            if 'users' in inspector.get_table_names():
+                columns = [c['name'] for c in inspector.get_columns('users')]
+                if 'matric_no' not in columns:
+                    with db.engine.begin() as conn:
+                        conn.execute(text("DROP TABLE IF EXISTS status_history CASCADE;"))
+                        conn.execute(text("DROP TABLE IF EXISTS complaints CASCADE;"))
+                        conn.execute(text("DROP TABLE IF EXISTS categories CASCADE;"))
+                        conn.execute(text("DROP TABLE IF EXISTS users CASCADE;"))
+                    db.create_all()
 
-        from sqlalchemy import inspect, text
-        inspector = inspect(db.engine)
-        if 'users' in inspector.get_table_names():
-            columns = [c['name'] for c in inspector.get_columns('users')]
-            if 'matric_no' not in columns:
-                with db.engine.begin() as conn:
-                    conn.execute(text("DROP TABLE IF EXISTS status_history CASCADE;"))
-                    conn.execute(text("DROP TABLE IF EXISTS complaints CASCADE;"))
-                    conn.execute(text("DROP TABLE IF EXISTS categories CASCADE;"))
-                    conn.execute(text("DROP TABLE IF EXISTS users CASCADE;"))
-                db.create_all()
+            default_categories = [
+                "Academic Affairs", "Bursary & Payments", "Hostel & Accommodation",
+                "Library Services", "ICT & Portal Issues", "Facilities & Infrastructure",
+                "General Misconduct / Security", "Other Enquiries"
+            ]
 
-        default_categories = [
-            "Academic Affairs",
-            "Bursary & Payments",
-            "Hostel & Accommodation",
-            "Library Services",
-            "ICT & Portal Issues",
-            "Facilities & Infrastructure",
-            "General Misconduct / Security",
-            "Other Enquiries"
-        ]
-
-        for cat_name in default_categories:
-            if not Category.query.filter_by(name=cat_name).first():
-                db.session.add(Category(name=cat_name))
-        db.session.commit()
-
-        admin_email = "admin@bouesti.edu.ng"
-        if not User.query.filter_by(email=admin_email).first():
-            hashed_password = generate_password_hash("Admin@BOUESTI2026!", method="pbkdf2:sha256")
-            admin_user = User(
-                full_name="System Super Administrator",
-                email=admin_email,
-                matric_no="ADMIN/001",
-                role="Admin",
-                password_hash=hashed_password
-            )
-            db.session.add(admin_user)
+            for cat_name in default_categories:
+                if not Category.query.filter_by(name=cat_name).first():
+                    db.session.add(Category(name=cat_name))
             db.session.commit()
 
-        app._db_initialized = True
-    except Exception as e:
-        db.session.rollback()
-        print(f"Database Initialization Note: {e}")
+            admin_email = "admin@bouesti.edu.ng"
+            if not User.query.filter_by(email=admin_email).first():
+                hashed_password = generate_password_hash("Admin@BOUESTI2026!", method="pbkdf2:sha256")
+                admin_user = User(
+                    full_name="System Super Administrator",
+                    email=admin_email,
+                    matric_no="ADMIN/001",
+                    role="Admin",
+                    password_hash=hashed_password
+                )
+                db.session.add(admin_user)
+                db.session.commit()
+
+        except Exception as e:
+            db.session.rollback()
+            print(f"Database Initialization Note: {e}")
+
+# Initialize once on startup
+init_db()
 
 # =========================================================================
 # 5. ENTRY POINT
